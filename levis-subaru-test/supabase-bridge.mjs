@@ -155,7 +155,13 @@ export function createSupabaseBridge(client) {
   }
   async function inviteEmployee(employee){
     const result=await client.functions.invoke('invite-employee',{body:{employee,sitePath:typeof location!=='undefined' ? location.pathname : '/levis-subaru-test/'}});
-    errorIf(result);
+    if(result.error){
+      try{
+        const detail=await result.error.context?.json?.();
+        if(typeof detail?.error==='string'&&detail.error)throw new Error(detail.error);
+      }catch(e){if(e instanceof Error&&e!==result.error&&e.message!=='Unexpected end of JSON input')throw e;}
+      throw result.error;
+    }
     return result.data;
   }
   return {collection,doc,where,query,getDoc,getDocs,setDoc,onSnapshot,runTransaction,inviteEmployee,

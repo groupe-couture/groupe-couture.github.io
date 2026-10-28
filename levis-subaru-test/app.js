@@ -191,7 +191,10 @@ function openTeam(uid){
  for(const k of ['name','poste','email','role','department'])f.elements[k].value=editingUser?.[k]||(k==='role'?'employe':k==='department'?'vente':'');
  f.elements.active.checked=editingUser?.active??true;f.elements.role.disabled=!admin||uid===user.uid;f.elements.active.disabled=!admin||uid===user.uid;
  $('#roleField').hidden=!admin;$('#activeField').hidden=!admin;f.elements.email.readOnly=!!uid&&admin;
- f.elements.role.onchange=f.elements.department.onchange=updateAccessExplanation;updateAccessExplanation();$('#teamDialog').showModal();
+ f.elements.role.onchange=f.elements.department.onchange=updateAccessExplanation;updateAccessExplanation();
+ f.dataset.employeeId='';
+ $('#teamSaveAndInvite').hidden=!admin||demo||location.pathname!=='/levis-subaru/'||uid===user.uid;
+ $('#teamDialog').showModal();
 }
 async function seedEmployees(){for(const e of EMPLOYEES){await sdk.runTransaction(db,async tx=>{const ref=sdk.doc(db,'employees',e.id),snap=await tx.get(ref);if(!snap.exists()){const data={...e};delete data.id;tx.set(ref,data);}});}}
 function renderMessages(){
@@ -203,19 +206,29 @@ function renderMessages(){
 }
 $('#teamClose').onclick=$('#teamCancel').onclick=()=>$('#teamDialog').close();
 $('#teamForm').onsubmit=async e=>{
- e.preventDefault();const f=e.target,btn=$('#teamSave'),admin=canManageAccess(profile);btn.disabled=true;$('#teamError').textContent='';
+ e.preventDefault();const f=e.target,btn=$('#teamSave'),inviteButton=$('#teamSaveAndInvite'),admin=canManageAccess(profile);
+ const sendInvitation=e.submitter?.id==='teamSaveAndInvite';
+ if(sendInvitation&&(!admin||demo||location.pathname!=='/levis-subaru/'))return;
+ btn.disabled=true;inviteButton.disabled=true;$('#teamError').textContent='';
  try{
   const data={name:f.elements.name.value.trim(),poste:f.elements.poste.value.trim(),email:f.elements.email.value.trim().toLowerCase(),department:f.elements.department.value};
   if(!data.name||!data.poste)throw Error('Le nom et le poste sont obligatoires.');if(data.email&&!validEmail(data.email))throw Error('Courriel invalide.');
   const access={role:admin?f.elements.role.value:'employe',active:f.elements.active.checked};
   if(admin&&access.role==='directeur'&&!['vente','service','piece','esthetique'].includes(data.department))throw Error('Choisissez le département KPI du directeur.');
   if(editingUser?.uid===user.uid){access.role='admin';access.active=true;}
-  const id=editingEmployee?.id||('custom-'+newId()),employeeData={...data,...(admin?{accessRole:access.role}:{})};
+  if(sendInvitation&&!validEmail(data.email))throw Error('Ajoutez une adresse courriel valide pour envoyer une invitation.');
+  const id=editingEmployee?.id||f.dataset.employeeId||('custom-'+newId()),employeeData={...data,...(admin?{accessRole:access.role}:{})};
+  f.dataset.employeeId=id;
   if(editingUser){if(demo)team=team.map(u=>u.uid===editingUser.uid?{...u,...data,...access}:u);else await sdk.setDoc(sdk.doc(db,'users',editingUser.uid),{...data,...access,updatedAt:new Date().toISOString()},{merge:true});employeeData.uid=editingUser.uid;}
   if(demo){const exists=employees.find(e=>e.id===id);employees=exists?employees.map(e=>e.id===id?{...e,...employeeData}:e):[...employees,{id,...employeeData}];persistDemo();}
   else await sdk.setDoc(sdk.doc(db,'employees',id),employeeData,{merge:true});
-  editingEmployee=null;$('#teamDialog').close();toast('Fiche enregistrée');render();
- }catch(err){$('#teamError').textContent=message(err);}finally{btn.disabled=false;}
+  if(sendInvitation){
+    const result=await sdk.inviteEmployee({id,...employeeData,role:access.role});
+    if(result?.invitationStatus!=='sent')throw Error('Supabase n’a pas confirmé l’envoi.');
+  }
+  editingEmployee=null;$('#teamDialog').close();
+  toast(sendInvitation?'Fiche enregistrée et invitation envoyée.':'Fiche enregistrée');render();
+ }catch(err){$('#teamError').textContent=message(err);}finally{btn.disabled=false;inviteButton.disabled=false;}
 };
 function renderInvitations(){
  if(!canManageAccess(profile))return;document.querySelectorAll('[data-tab],[data-subcategory]').forEach(b=>b.disabled=inviting);$('#logout').disabled=inviting;$('#add').disabled=inviting;const disabled=inviting?'disabled':'';
