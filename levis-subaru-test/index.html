@@ -38,7 +38,7 @@
 <label>Département<select name="department"></select></label><label>Courriel<input name="email" type="email" maxlength="200" autocomplete="off"></label>
 <label id="roleField">Profil d’accès<select name="role"><option value="employe">Employé</option><option value="directeur">Directeur de département</option><option value="admin">Administrateur</option></select></label>
 <label class="check" id="activeField"><input name="active" type="checkbox" checked> Compte actif</label>
-</div><p id="accessExplanation" class="notice"></p><p class="muted">Enregistrez la fiche, puis utilisez « Invitations en lot » pour envoyer le courriel de création du mot de passe. Les droits et invitations sont gérés par l’administrateur.</p><p id="teamError" class="error" role="alert"></p><div class="dialog-actions"><button id="teamCancel" type="button">Annuler</button><button class="primary" id="teamSave" type="submit">Enregistrer</button></div></form></dialog>
+</div><p id="accessExplanation" class="notice"></p><p class="muted">Pour créer un accès, ajoutez l’adresse courriel puis cliquez sur « Enregistrer et envoyer l’invitation ». Le courriel est envoyé automatiquement lorsque le service d’envoi de Supabase est configuré.</p><p id="teamError" class="error" role="alert"></p><div class="dialog-actions"><button id="teamCancel" type="button">Annuler</button><button class="primary" id="teamSave" type="submit">Enregistrer</button><button id="teamSaveAndInvite" type="submit" hidden>Enregistrer et envoyer l’invitation</button></div></form></dialog>
 <dialog id="passwordDialog" aria-labelledby="passwordTitle"><form id="passwordForm">
 <h2 id="passwordTitle">Créer votre mot de passe Supabase</h2>
 <p>Choisissez un mot de passe pour accéder à Lévis Subaru.</p>
