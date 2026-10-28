@@ -9,7 +9,7 @@ import {SECTIONS,departmentSummary} from './objectives.mjs?v=1.12';
 import {DEPARTMENTS,EMPLOYEES} from './employees.mjs?v=1.12';
 import {STEPS,objectiveSummary,stepsFor,STATES,today,dayKey,dateObj,age,complete,progress,counts,preparationQueue,defaultSteps,validate,esc} from './domain.mjs?v=1.12';
 import {supabaseConfig} from './supabase-config.js?v=1.13';
-import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.13';
+import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.13.2';
 const $=s=>document.querySelector(s),demo=new URLSearchParams(location.search).get('demo')==='1';
 let metricUnsubs=[],metricYear='',departmentData={},objectiveView='vente';
 let employees=[],messages=[],teamView='users',editingEmployee=null,inviteDraft=null,inviting=false,editingMessage=null;
