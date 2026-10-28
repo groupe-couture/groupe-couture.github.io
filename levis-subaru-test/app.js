@@ -162,11 +162,23 @@ function renderTeam(){
  const admin=canManageAccess(profile);let html=admin?'<div class="toolbar"><button id="openInvites" class="primary">Invitations en lot</button><span class="muted">Ajouter les courriels, choisir les profils, puis envoyer les invitations.</span></div>':'';
  for(const [k,label]of Object.entries(DEPARTMENTS)){
   const rows=employees.filter(e=>e.department===k);
-  html+=`<h3>${label}</h3><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Poste</th><th>Courriel</th><th>Accès</th><th></th></tr></thead><tbody>${rows.map(e=>{const account=team.find(u=>u.uid===e.uid);return `<tr><td><strong>${esc(e.name)}</strong></td><td>${esc(e.poste)}</td><td>${esc(e.email||'À compléter')}</td><td>${e.uid?(account?.active===false?'Inactif':account?.invitationStatus==='active'?'Connecté':e.invitationStatus==='sent'?'Invitation envoyée':'Compte créé'):'À créer'}${admin?'<small>'+esc(ROLES[account?.role||e.accessRole]||'Employé')+'</small>':''}</td><td><button data-employee="${esc(e.id)}">Modifier</button></td></tr>`;}).join('')||'<tr><td colspan="5">Aucun employé renseigné.</td></tr>'}</tbody></table></div>`;
+  html+=`<h3>${label}</h3><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Poste</th><th>Courriel</th><th>Accès</th><th></th></tr></thead><tbody>${rows.map(e=>{const account=team.find(u=>u.uid===e.uid);const canInvite=admin&&!demo&&location.pathname==='/levis-subaru/'&&validEmail(e.email)&&account?.invitationStatus!=='active';return `<tr><td><strong>${esc(e.name)}</strong></td><td>${esc(e.poste)}</td><td>${esc(e.email||'À compléter')}</td><td>${e.uid?(account?.active===false?'Inactif':account?.invitationStatus==='active'?'Connecté':e.invitationStatus==='sent'?'Invitation envoyée':'Compte créé'):'À créer'}${admin?'<small>'+esc(ROLES[account?.role||e.accessRole]||'Employé')+'</small>':''}</td><td><button data-employee="${esc(e.id)}">Modifier</button>${canInvite?` <button type="button" data-employee-invite="${esc(e.id)}">Envoyer invitation</button>`:""}</td></tr>`;}).join('')||'<tr><td colspan="5">Aucun employé renseigné.</td></tr>'}</tbody></table></div>`;
  }
  if(admin){const linked=new Set(employees.map(e=>e.uid));html+='<h3>Autres comptes existants</h3>'+team.filter(u=>!linked.has(u.uid)).map(u=>`<p>${esc(u.name)} · ${esc(u.poste||'Poste à préciser')} <button data-user="${esc(u.uid)}">Modifier</button></p>`).join('');}
  teamShell(html);if(admin)$('#openInvites').onclick=()=>{inviteDraft=employees.map(e=>{const a=team.find(u=>u.uid===e.uid);return {...e,email:a?.email||e.email||'',role:a?.role||e.accessRole||'employe',department:a?.department||e.department,selected:!e.uid&&validEmail(e.email)};});render();};
  document.querySelectorAll('[data-employee]').forEach(b=>b.onclick=()=>openEmployee(b.dataset.employee));
+ document.querySelectorAll('[data-employee-invite]').forEach(b=>b.onclick=async()=>{
+   const employee=employees.find(e=>e.id===b.dataset.employeeInvite);
+   if(!employee||!validEmail(employee.email)||!canManageAccess(profile))return;
+   b.disabled=true;
+   try{
+     const role=employee.accessRole||'employe';
+     const result=await sdk.inviteEmployee({...employee,role});
+     if(result?.invitationStatus!=='sent')throw Error('Envoi non confirmé par le serveur.');
+     toast('Invitation envoyée à '+employee.email);
+   }catch(error){fail(error);}
+   finally{b.disabled=false;}
+ });
  document.querySelectorAll('[data-user]').forEach(b=>b.onclick=()=>{editingEmployee=null;openTeam(b.dataset.user);});
 }
 function openEmployee(id){editingEmployee=employees.find(e=>e.id===id)||null;openTeam(editingEmployee?.uid);const f=$('#teamForm');if(editingEmployee){for(const k of ['name','poste','email','department'])f.elements[k].value=editingEmployee[k]||(k==='department'?'vente':'');if(!editingUser)f.elements.role.value=editingEmployee.accessRole||'employe';$('#teamTitle').textContent='Modifier un employé';updateAccessExplanation();}}
@@ -207,8 +219,8 @@ $('#teamForm').onsubmit=async e=>{
 };
 function renderInvitations(){
  if(!canManageAccess(profile))return;document.querySelectorAll('[data-tab],[data-subcategory]').forEach(b=>b.disabled=inviting);$('#logout').disabled=inviting;$('#add').disabled=inviting;const disabled=inviting?'disabled':'';
- const rows=inviteDraft.map((e,i)=>{const a=team.find(u=>u.uid===e.uid);const state=e.result||(e.activationLink?'Lien prêt à copier':a?.invitationStatus==='active'?'Connecté':e.invitationStatus==='pending'?'Lien à transmettre':e.invitationStatus==='error'?'Lien à régénérer':e.uid?'Compte créé':!e.email?'Courriel à compléter':'À inviter');return `<tr><td><input type="checkbox" aria-label="Inviter ${esc(e.name)}" data-invite-select="${i}" ${e.selected?'checked':''} ${disabled}></td><td><strong>${esc(e.name)}</strong><small>${esc(e.poste)}</small></td><td><input aria-label="Courriel de ${esc(e.name)}" data-invite-email="${i}" type="email" value="${esc(e.email)}" ${e.uid?'readonly':''} ${disabled}></td><td><select aria-label="Département de ${esc(e.name)}" data-invite-department="${i}" ${disabled}>${Object.entries(DEPARTMENTS).map(([k,l])=>`<option value="${k}" ${k===e.department?'selected':''}>${l}</option>`).join('')}</select></td><td><select aria-label="Profil de ${esc(e.name)}" data-invite-role="${i}" ${disabled} ${e.uid===user.uid?'disabled':''}>${Object.entries(ROLES).map(([k,l])=>`<option value="${k}" ${k===e.role?'selected':''}>${l}</option>`).join('')}</select></td><td class="invite-state">${esc(state)}${e.activationLink?'<button type="button" data-invite-copy="'+i+'">Copier le lien sécurisé</button>':''}</td></tr>`;}).join('');
- teamShell(`<div class="toolbar"><button id="closeInvites" ${disabled}>← Utilisateurs</button><h2>Invitations en lot</h2></div><p>Complétez les adresses ou collez une liste depuis Excel. Vérifiez les profils et cochez les destinataires. Les liens de connexion se préparent sur le site officiel uniquement et doivent ensuite être envoyés manuellement depuis Outlook.</p><details class="roster-import"><summary>Coller une liste depuis Excel ou CSV</summary><p>Colonnes : Nom ; Courriel ; Département ; Poste ; Profil (employe, directeur ou admin).</p><textarea id="rosterText" rows="4" placeholder="Nom;Courriel;Département;Poste;Profil" ${disabled}></textarea><button id="importRoster" ${disabled}>Préparer la liste</button></details><div class="toolbar"><button id="selectInvites" ${disabled}>Cocher les adresses complétées</button><button id="saveRoster" ${disabled}>Enregistrer la liste</button><button id="sendInvites" class="primary" ${disabled}>${demo?'Simuler les invitations sélectionnées':location.pathname==='/levis-subaru/'?'Créer les liens pour Outlook':'Invitations désactivées sur le site test'}</button></div><p class="muted">Aucun courriel n’est envoyé automatiquement. Sur le site officiel, créez les liens, copiez-les et envoyez-les uniquement aux destinataires depuis Outlook. Un lien est personnel et donne accès au compte; ne le partagez pas ailleurs. Maximum 50 personnes par lot.</p><p id="inviteError" role="alert" class="error"></p><p id="inviteProgress" role="status">${inviting?'Création en cours…':''}</p><div class="table-wrap invitation-table"><table><thead><tr><th>Inviter</th><th>Employé</th><th>Courriel</th><th>Département</th><th>Profil</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+ const rows=inviteDraft.map((e,i)=>{const a=team.find(u=>u.uid===e.uid);const state=e.result||(a?.invitationStatus==='active'?'Connecté':e.invitationStatus==='pending'?'Activation à compléter':e.invitationStatus==='error'?'Invitation à reprendre':e.uid?'Compte créé':!e.email?'Courriel à compléter':'À inviter');return `<tr><td><input type="checkbox" aria-label="Inviter ${esc(e.name)}" data-invite-select="${i}" ${e.selected?'checked':''} ${disabled}></td><td><strong>${esc(e.name)}</strong><small>${esc(e.poste)}</small></td><td><input aria-label="Courriel de ${esc(e.name)}" data-invite-email="${i}" type="email" value="${esc(e.email)}" ${e.uid?'readonly':''} ${disabled}></td><td><select aria-label="Département de ${esc(e.name)}" data-invite-department="${i}" ${disabled}>${Object.entries(DEPARTMENTS).map(([k,l])=>`<option value="${k}" ${k===e.department?'selected':''}>${l}</option>`).join('')}</select></td><td><select aria-label="Profil de ${esc(e.name)}" data-invite-role="${i}" ${disabled} ${e.uid===user.uid?'disabled':''}>${Object.entries(ROLES).map(([k,l])=>`<option value="${k}" ${k===e.role?'selected':''}>${l}</option>`).join('')}</select></td><td class="invite-state">${esc(state)}</td></tr>`;}).join('');
+ teamShell(`<div class="toolbar"><button id="closeInvites" ${disabled}>← Utilisateurs</button><h2>Invitations en lot</h2></div><p>Complétez les adresses ou collez une liste depuis Excel. Vérifiez les profils et cochez les destinataires. Entrez les courriels des employés et envoyez leurs invitations directement depuis la plateforme. Chaque employé recevra son propre lien d’activation.</p><details class="roster-import"><summary>Coller une liste depuis Excel ou CSV</summary><p>Colonnes : Nom ; Courriel ; Département ; Poste ; Profil (employe, directeur ou admin).</p><textarea id="rosterText" rows="4" placeholder="Nom;Courriel;Département;Poste;Profil" ${disabled}></textarea><button id="importRoster" ${disabled}>Préparer la liste</button></details><div class="toolbar"><button id="selectInvites" ${disabled}>Cocher les adresses complétées</button><button id="saveRoster" ${disabled}>Enregistrer la liste</button><button id="sendInvites" class="primary" ${disabled}>${demo?'Simuler les invitations sélectionnées':location.pathname==='/levis-subaru/'?'Envoyer les invitations':'Invitations désactivées sur le site test'}</button></div><p class="muted">Les invitations sont envoyées automatiquement par le serveur de courriel configuré dans Supabase. Vous n’avez pas à ouvrir Outlook ni copier de lien. Maximum 50 personnes par lot.</p><p id="inviteError" role="alert" class="error"></p><p id="inviteProgress" role="status">${inviting?'Envoi en cours…':''}</p><div class="table-wrap invitation-table"><table><thead><tr><th>Inviter</th><th>Employé</th><th>Courriel</th><th>Département</th><th>Profil</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table></div>`);
  $('#closeInvites').onclick=()=>{inviteDraft=null;render();};
  for(const [attr,key,kind]of [['email','email','input'],['department','department','change'],['role','role','change'],['select','selected','change']])document.querySelectorAll('[data-invite-'+attr+']').forEach(input=>input.addEventListener(kind,()=>{const row=inviteDraft[Number(input.getAttribute('data-invite-'+attr))];row[key]=key==='selected'?input.checked:key==='email'?input.value.trim().toLowerCase():input.value;}));
  $('#selectInvites').onclick=()=>{for(const e of inviteDraft)e.selected=validEmail(e.email);renderInvitations();};
@@ -216,14 +228,7 @@ function renderInvitations(){
  $('#saveRoster').onclick=async()=>{try{await saveRosterDraft(inviteDraft.filter(e=>e.email.trim()));toast('Liste enregistrée');renderInvitations();}catch(err){$('#inviteError').textContent=message(err);}};
  $('#sendInvites').onclick=sendSelectedInvitations;
  if(!demo&&location.pathname!=='/levis-subaru/')$('#sendInvites').disabled=true;
- document.querySelectorAll('[data-invite-copy]').forEach(button=>button.onclick=async()=>{
-   const i=Number(button.dataset.inviteCopy),e=inviteDraft[i];
-   if(!e?.activationLink)return;
-   try{await navigator.clipboard.writeText(e.activationLink);toast('Lien copié. Envoyez-le seulement à '+e.email+' depuis Outlook.');}
-   catch{const input=document.createElement('textarea');input.value=e.activationLink;input.readOnly=true;
-     document.body.append(input);input.select();document.execCommand('copy');input.remove();
-     toast('Lien copié. Envoyez-le seulement à '+e.email+' depuis Outlook.');}
- });
+
 }
 async function saveRosterDraft(rows){
  if(!canManageAccess(profile))throw Error('Accès administrateur requis.');const errors=draftErrors(rows);if(errors.length)throw Error(errors.join('\n'));
@@ -244,7 +249,7 @@ async function sendSelectedInvitations(){
   if(!selected.length)throw Error('Cochez les destinataires.');if(selected.length>50)throw Error('Sélectionnez au maximum 50 personnes par lot.');const errors=draftErrors(selected);if(errors.length)throw Error(errors.join('\n'));
   inviting=true;renderInvitations();await saveRosterDraft(selected);let sent=0;
   for(const e of selected){
-   e.result='Création du lien…';renderInvitations();
+   e.result='Envoi en cours…';renderInvitations();
    try{
     const account=e.uid?team.find(u=>u.uid===e.uid):null;
     if(account?.active===false)throw Error('Compte inactif : réactivez-le avant de l’inviter.');
@@ -252,14 +257,12 @@ async function sendSelectedInvitations(){
     if(demo){const uid=e.uid||newId();if(!e.uid)team.push({uid,name:e.name,poste:e.poste,email:e.email,department:e.department,role:e.role,active:true,invitationStatus:'pending'});result={uid,invitationStatus:'sent'};}
     else result=await sdk.inviteEmployee(e);
     e.uid=result.uid;e.invitationStatus=result.invitationStatus;
-    e.activationLink=result.activationLink||null;
-    if(!demo&&!e.activationLink)throw Error('Le lien sécurisé est manquant.');
-    e.result=demo?'Invitation simulée':'Lien sécurisé prêt à copier';sent++;
+    e.result=demo?'Invitation simulée':'Invitation envoyée';sent++;
     if(demo){employees=employees.map(x=>x.id===e.id?{...x,uid:e.uid,invitationStatus:e.invitationStatus}:x);persistDemo();}
    }catch(error){if(error.accountUid)e.uid=error.accountUid;e.result='Échec : '+message(error);}
    e.selected=false;
   }
-  inviting=false;renderInvitations();$('#inviteProgress').textContent=`${sent} / ${selected.length} lien(s) ${demo?'simulé(s)':'créé(s) dans Supabase'}. Copiez les liens et envoyez-les depuis Outlook, uniquement aux destinataires.`;
+  inviting=false;renderInvitations();$('#inviteProgress').textContent=`${sent} / ${selected.length} invitation(s) ${demo?'simulée(s)':'envoyée(s) par Supabase'}. Consultez les résultats pour chaque employé.`;
  }catch(error){inviting=false;renderInvitations();$('#inviteError').textContent=message(error);}
 }
 
