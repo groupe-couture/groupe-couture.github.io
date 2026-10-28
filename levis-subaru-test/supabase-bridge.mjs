@@ -154,7 +154,7 @@ export function createSupabaseBridge(client) {
     return result;
   }
   async function inviteEmployee(employee){
-    const result=await client.functions.invoke('invite-employee',{body:{employee}});
+    const result=await client.functions.invoke('invite-employee',{body:{employee,sitePath:typeof location!=='undefined' ? location.pathname : '/levis-subaru-test/'}});
     errorIf(result);
     return result.data;
   }
