@@ -6,7 +6,7 @@ export function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).pa
 export function dateObj(s){return new Date(`${s}T12:00:00`);}
 export function age(s,end=today()){return Math.max(0,Math.round((dateObj(end)-dateObj(s))/86400000));}
 export function stepsFor(v){return v.delivery?[...STEPS.filter(([k])=>k!=='photos'),['pieces','Pièces']]:STEPS;}
-export function complete(v){return stepsFor(v).every(([k])=>['Terminé','Non requis'].includes(v.steps?.[k]?.status));}
+export function complete(v){return stepsFor(v).every(([k])=>['Terminé','Non requis'].includes(v.steps?.[k]?.status))&&(v.workOrders||[]).every(w=>['Terminé','Non requis'].includes(w.status));}
 export function progress(v){return stepsFor(v).filter(([k])=>['Terminé','Non requis'].includes(v.steps?.[k]?.status)).length;}
 export function counts(records,month){return records.reduce((n,v)=>{if(v.delivery?.status==='Livré'&&v.delivery.actualDate?.slice(0,7)===month)n[v.type]=(n[v.type]||0)+1;return n;},{VN:0,VO:0});}
 export function preparationQueue(records){return records.filter(v=>v.type==='VO'&&!v.archived&&v.delivery?.status!=='Livré').sort((a,b)=>(a.arrival||'').localeCompare(b.arrival||'')||(a.createdAt||'').localeCompare(b.createdAt||''));}

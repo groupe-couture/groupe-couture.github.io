@@ -1,5 +1,5 @@
-import {stepsFor,STATES} from './domain.mjs?v=1.12';
-import {deliveryTimestamp} from './delivery.mjs?v=1.12';
+import {stepsFor,STATES} from './domain.mjs?v=1.14';
+import {deliveryTimestamp} from './delivery.mjs?v=1.14';
 const present=v=>typeof v==='string'&&v.trim().length>0;
 const validDate=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v||''))return false;const d=new Date(v+'T12:00:00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===v;};
 export function recordErrors(v){
@@ -25,5 +25,6 @@ export function recordErrors(v){
   if(['Prête','Livré'].includes(d?.status)&&!['Terminé','Non requis'].includes(status))errors['step_'+k]=label+' : terminez cette étape ou indiquez « Non requis ».';
  }
  if(['Prête','Livré'].includes(d?.status)&&v.blocker?.trim())errors.blocker='Résolvez et retirez le blocage avant de confirmer le véhicule prêt ou livré.';
+ if(['Prête','Livré'].includes(d?.status)&&(v.workOrders||[]).some(w=>!['Terminé','Non requis'].includes(w.status)))errors.workOrders='Terminez les travaux additionnels avant de confirmer le véhicule prêt ou livré.';
  return errors;
 }

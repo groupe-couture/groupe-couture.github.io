@@ -1,4 +1,4 @@
-import {DEPARTMENTS} from './employees.mjs?v=1.12';
+import {DEPARTMENTS} from './employees.mjs?v=1.14';
 export const ROLES={employe:'Employé',directeur:'Directeur de département',admin:'Administrateur'};
 export const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
 export const validEmail=s=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s||'');
@@ -39,3 +39,4 @@ export async function inviteEmployee({sdk,employee,account}){
    throw Error('Compte inactif ou adresse courriel différente de la fiche.');
  return sdk.inviteEmployee(employee);
 }
+

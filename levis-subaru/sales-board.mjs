@@ -1,4 +1,4 @@
-import {salesSummary,number} from './reporting.mjs?v=1.12';
+import {salesSummary,number} from './reporting.mjs?v=1.14';
 export const HOUSE={id:'maison',name:'Maison'};
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export function salespersonType(e){

@@ -12,7 +12,7 @@ export function deliveryTimestamp(delivery){
  for(let i=0;i<4;i++)value+=wall-wallTime(value);
  return wallTime(value)===wall?value:NaN;
 }
-export function deliveryReady(v){return ['Prête','Livré'].includes(v.delivery?.status)&&!v.blocker?.trim()&&['inspection','mechanique','sousTraitance','lavage','pieces'].every(k=>['Terminé','Non requis'].includes(v.steps?.[k]?.status));}
+export function deliveryReady(v){return ['Prête','Livré'].includes(v.delivery?.status)&&!v.blocker?.trim()&&['inspection','mechanique','sousTraitance','lavage','pieces'].every(k=>['Terminé','Non requis'].includes(v.steps?.[k]?.status))&&(v.workOrders||[]).every(w=>['Terminé','Non requis'].includes(w.status));}
 export function urgentDelivery(v,now=Date.now()){
  if(v.archived||!v.delivery||['Livré','Annulée'].includes(v.delivery.status)||deliveryReady(v))return false;
  const due=deliveryTimestamp(v.delivery);

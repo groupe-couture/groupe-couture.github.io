@@ -1,4 +1,4 @@
-import {stepsFor, progress, esc} from './domain.mjs?v=1.12';
+import {stepsFor, progress, esc} from './domain.mjs?v=1.14';
 const STATUS = {
  'À faire': {className:'todo', label:'à faire', mark:''},
  'En cours': {className:'ongoing', label:'en cours', mark:'•'},
@@ -20,5 +20,5 @@ export function preparationSummary(v) {
   const text=esc(`${label} · ${state.label}`);
   return `<span role="listitem"><button type="button" class="preparation-icon ${state.className}" title="${text}" aria-label="${text}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[key]||ICONS.inspection}</svg>${state.mark?`<span class="preparation-mark" aria-hidden="true">${state.mark}</span>`:''}</button></span>`;
  }).join('');
- return `<div class="preparation-summary"><div class="preparation-count">${progress(v)} / ${steps.length} étapes complétées</div><div class="preparation-icons" role="list" aria-label="Avancement de la préparation">${badges}</div>${v.blocker?`<button type="button" class="preparation-blocker-icon" title="Attente / blocage : ${esc(v.blocker)}" aria-label="Attente / blocage : ${esc(v.blocker)}">!</button>`:''}</div>`;
+ return `<div class="preparation-summary"><div class="preparation-count">${progress(v)} / ${steps.length} étapes complétées</div><div class="preparation-icons" role="list" aria-label="Avancement de la préparation">${badges}</div>${v.workOrders?.length?'<small class="work-summary">Travaux : '+v.workOrders.filter(w=>['Terminé','Non requis'].includes(w.status)).length+' / '+v.workOrders.length+' complétés</small>':''}${v.blocker?`<button type="button" class="preparation-blocker-icon" title="Attente / blocage : ${esc(v.blocker)}" aria-label="Attente / blocage : ${esc(v.blocker)}">!</button>`:''}</div>`;
 }
