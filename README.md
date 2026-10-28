@@ -16,4 +16,4 @@ Un seul fichier, `index.html`. Pour ajouter une application, copier un bloc `<di
 dans le `<nav>`. Pas de build, aucune dépendance.
 
 Ce dépôt est public (forfait gratuit de l'organisation) : n'y mettre que la page d'accueil,
-jamais le code ni la configuration des applications.
+seulement les fichiers de sites publiés, jamais le code source, les tests ni les règles.
