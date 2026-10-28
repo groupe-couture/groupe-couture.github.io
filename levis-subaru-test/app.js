@@ -137,7 +137,22 @@ window.addEventListener('offline',()=>{if(!demo)$('#connection').textContent='Ho
 
 let editingUser=null;
 function renderSidebars(){for(const group of Object.keys(SUBMENUS)){const views=availableSubcategories(profile,group),parent=document.querySelector(`[data-tab="${group}"]`);if(!parent)continue;parent.hidden=!views.length;const sub=$(group==='team'?'#teamSubnav':'#objectiveSubnav');sub.hidden=tab!==group||!views.length;const selected=group==='team'?teamView:objectiveView;sub.innerHTML=views.map(([k,label])=>`<button data-subcategory="${k}" class="${selected===k?'selected':''}">${label}</button>`).join('');sub.querySelectorAll('[data-subcategory]').forEach(b=>b.onclick=()=>{const key=b.dataset.subcategory;if(!canViewSubcategory(profile,group,key))return;modules.leave();if(group==='team')teamView=key;else objectiveView=key;tab=group;render();});}}
-function subscribeMetrics(){if(demo||!db||!profile||tab!=='settings')return;const year=monthKey().slice(0,4);if(metricYear===year)return;metricUnsubs.forEach(fn=>fn());metricUnsubs=[];metricYear=year;departmentData={};for(const [section]of availableSubcategories(profile,'settings'))for(let i=1;i<=12;i++){const id=section+'_'+year+'-'+String(i).padStart(2,'0');metricUnsubs.push(sdk.onSnapshot(sdk.doc(db,'departmentMetrics',id),s=>{if(s.exists())departmentData[id]=s.data();else delete departmentData[id];if(tab==='settings')render();},fail));}}
+function subscribeMetrics(){
+ if(demo||!db||!profile||tab!=='settings')return;
+ const year=monthKey().slice(0,4);
+ if(metricYear===year)return;
+ metricUnsubs.forEach(fn=>fn());metricUnsubs=[];
+ metricYear=year;departmentData={};
+ const allowed=new Set(availableSubcategories(profile,'settings').map(([key])=>key));
+ if(!allowed.size)return;
+ // Un abonnement par année plutôt que 12 par département.
+ metricUnsubs.push(sdk.onSnapshot(sdk.collection(db,'departmentMetrics'),snap=>{
+   departmentData=Object.fromEntries(snap.docs
+     .filter(d=>allowed.has(d.id.split('_')[0])&&d.id.split('_')[1]?.startsWith(year+'-'))
+     .map(d=>[d.id,d.data()]));
+   if(tab==='settings')render();
+ },fail));
+}
 function teamShell(content){$('#metrics').innerHTML='';$('#content').innerHTML=content;}
 function renderTeam(){
  if(!canViewTeam(profile,teamView))return;
