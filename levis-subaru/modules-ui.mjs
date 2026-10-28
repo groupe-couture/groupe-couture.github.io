@@ -25,7 +25,7 @@ export function createModules(ctx){
   subs.forEach(f=>f());subs=[];connected=key;
   if(c.demo){try{const x=JSON.parse(localStorage.getItem('levis-modules-v111')||'{}');sales=x.sales||[];finances=x.finances||[];targets=x.targets||[];reports=x.reports||[];plans=x.plans||[];legacy=x.legacy||{};}catch{}loaded=true;return;}
   const {sdk,db}=c,y=getMonth().slice(0,4);loaded=false;pending=0;loadError=false;
-  const watch=(collection,query,assign)=>{pending++;let first=true;subs.push(sdk.onSnapshot(query,s=>{assign(s.docs.map(d=>({...d.data(),id:d.id})));if(first){pending--;first=false;}loaded=pending===0;refresh();},e=>{loadError=true;ctx.fail(e);refresh();}));};
+  const watch=(collection,query,assign)=>{pending++;let first=true;subs.push(sdk.onSnapshot(query,s=>{assign(s.docs.map(d=>({...d.data(),id:d.id})));if(first){pending--;first=false;}loaded=pending===0;refresh();},e=>{loadError=true;ctx.fail(e);if(first){pending--;first=false;}loaded=pending===0;refresh();}));};
   watch('sales',sdk.query(sdk.collection(db,'sales'),sdk.where('year','==',y)),v=>sales=v);
   if(can('vente')){watch('saleFinancials',sdk.collection(db,'saleFinancials'),v=>finances=v);watch('salesTargets',sdk.query(sdk.collection(db,'salesTargets'),sdk.where('year','==',y)),v=>targets=v);}
   else{finances=[];targets=[];}
@@ -33,10 +33,17 @@ export function createModules(ctx){
   for(const d of departments()){
    watch('weeklyReports',sdk.query(sdk.collection(db,'weeklyReports'),sdk.where('department','==',d)),v=>{reports=[...reports.filter(r=>r.department!==d),...v];});
    watch('monthlyPlans',sdk.query(sdk.collection(db,'monthlyPlans'),sdk.where('department','==',d)),v=>{plans=[...plans.filter(p=>p.department!==d),...v];});
-   for(const yr of [y,String(Number(y)-1)])for(let m=1;m<=12;m++){
-    const id=d+'_'+yr+'-'+String(m).padStart(2,'0');pending++;let first=true;subs.push(sdk.onSnapshot(sdk.doc(db,'departmentMetrics',id),s=>{if(s.exists())legacy[id]=s.data();else delete legacy[id];if(first){pending--;first=false;}loaded=pending===0;refresh();},e=>{loadError=true;ctx.fail(e);refresh();}));
-   }
   }
+  // Un seul abonnement pour les indicateurs de tous les départements.
+  // L'ancienne méthode ouvrait 24 abonnements par département, ralentissant
+  // fortement Supabase et le chargement initial des tableaux.
+  const permitted=new Set(departments());
+  if(permitted.size)watch('departmentMetrics',sdk.collection(db,'departmentMetrics'),rows=>{
+    legacy=Object.fromEntries(rows
+      .filter(item=>permitted.has(item.id.split('_')[0])
+        && [y,String(Number(y)-1)].some(year=>item.id.startsWith(item.id.split('_')[0]+'_'+year+'-')))
+      .map(({id,...data})=>[id,data]));
+  });
  }
  async function put(collection,id,data){
   const c=C(),payload={...data,updatedAt:new Date().toISOString(),updatedBy:c.user.uid};

@@ -1,6 +1,6 @@
-import {createModules} from './modules-ui.mjs?v=1.12';
+import {createModules} from './modules-ui.mjs?v=1.13.1';
 import {stampPreparation,preparationDateErrors} from './preparation-history.mjs?v=1.12';
-import {ROLES,parseRoster,draftErrors,inviteEmployee,newId,validEmail} from './invitations.mjs?v=1.12';
+import {ROLES,parseRoster,draftErrors,newId,validEmail} from './invitations.mjs?v=1.12';
 import {urgentDelivery,deliveryReady} from './delivery.mjs?v=1.12';
 import {recordErrors} from './record-validation.mjs?v=1.12';
 import {preparationSummary} from './preparation-view.mjs?v=1.12';
@@ -8,7 +8,8 @@ import {TEAM_VIEWS,ACCESS_FIELDS,SUBMENUS,canViewSubcategory,availableSubcategor
 import {SECTIONS,departmentSummary} from './objectives.mjs?v=1.12';
 import {DEPARTMENTS,EMPLOYEES} from './employees.mjs?v=1.12';
 import {STEPS,objectiveSummary,stepsFor,STATES,today,dayKey,dateObj,age,complete,progress,counts,preparationQueue,defaultSteps,validate,esc} from './domain.mjs?v=1.12';
-import {firebaseConfig} from './firebase-config.js?v=1.12';
+import {supabaseConfig} from './supabase-config.js?v=1.13';
+import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.13.2';
 const $=s=>document.querySelector(s),demo=new URLSearchParams(location.search).get('demo')==='1';
 let metricUnsubs=[],metricYear='',departmentData={},objectiveView='vente';
 let employees=[],messages=[],teamView='users',editingEmployee=null,inviteDraft=null,inviting=false,editingMessage=null;
@@ -16,7 +17,7 @@ let records=[],goals={},team=[],tab='vo',search='',filter='all',calendarDate=dat
 const TITLE={vo:['Préparation VO','Les plus anciens en premier. Les prochaines étapes en un regard.'],deliveries:['Livraisons','Des engagements clairs, jusqu’à la remise des clés.'],calendar:['Calendrier des livraisons','Planifiez les rendez-vous et suivez vos objectifs mensuels.'],settings:['KPI','Saisissez les résultats et objectifs de votre département.'],team:['Équipe','Les utilisateurs de la plateforme et leurs postes.']};
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;setTimeout(()=>$('#toast').hidden=true,4000);}
 function fail(e){$('#error').textContent=message(e);$('#error').hidden=false;}
-function message(e){if(e?.code==='permission-denied')return 'Accès refusé. Vérifiez le profil utilisateur, son niveau d’accès et active = vrai.';if(e?.code==='auth/invalid-credential')return 'Courriel ou mot de passe incorrect.';if(e?.code==='auth/api-key-not-valid.-please-pass-a-valid-api-key.')return 'La configuration Firebase doit être vérifiée.';return e?.message||'Une erreur est survenue. Réessayez.';}
+function message(e){if(e?.code==='permission-denied')return 'Accès refusé. Vérifiez le profil utilisateur, son niveau d’accès et active = vrai.';if(e?.code==='auth/invalid-credential')return 'Courriel ou mot de passe incorrect.';if(e?.code==='PGRST301'||e?.code==='42501')return 'Accès Supabase refusé. Vérifiez le rôle et les permissions.';return e?.message||'Une erreur est survenue. Réessayez.';}
 function monthKey(){return dayKey(calendarDate).slice(0,7);}
 function badge(s){return `<span class="badge ${['Livré','Finalisé','Prête','Terminé'].includes(s)?'green':['Bloqué','Demandée','En attente de planification'].includes(s)?'orange':''}">${esc(s)}</span>`;}
 function recordStatus(v){return v.blocker?'Bloqué':complete(v)?'Finalisé':'En préparation';}
@@ -102,14 +103,56 @@ function exportCSV(){const rows=visible(),fields=['Stock','Catégorie','Véhicul
 function persistDemo(){localStorage.setItem('levis-demo-v1',JSON.stringify({records,goals,team,employees,messages,departmentData}));}
 function seed(){const base={vin:'',keys:'Armoire service · 12',notes:'Dossier fictif pour les essais.',blocker:'',archived:false,version:1,createdAt:new Date().toISOString(),history:[]};return [['U101','2023 Subaru Outback','VO',10,'Mécanique'],['U102','2022 Subaru Crosstrek','VO',6,'Lavage'],['N201','2026 Subaru Forester','VN',2,'Concession']].map(([stock,model,type,days,location],i)=>{const d=dateObj(today());d.setDate(d.getDate()-days);const steps=defaultSteps(type);if(i===1){steps.inspection.status='Terminé';steps.mechanique.status='Terminé';steps.sousTraitance.status='Non requis';steps.lavage.status='En cours';}return {...base,id:'demo-'+i,stock,model,type,arrival:dayKey(d),location,steps,delivery:i===2?{client:'Client démonstration',advisor:'Conseiller démonstration',date:today(),time:'14:00',status:'Demandée',actualDate:'',driver:'Thomas Dussault',promises:'Installer les tapis.'}:null};});}
 async function init(){if(demo){let cached;try{cached=JSON.parse(localStorage.getItem('levis-demo-v1'));}catch{}records=cached?.records||seed();goals=cached?.goals||{};user={uid:'demo',email:'demo'};profile={name:'Démonstration',role:'admin',active:true,poste:'Administrateur'};team=cached?.team||[{uid:'demo',...profile,email:'demo@example.invalid'}];departmentData=cached?.departmentData||{};employees=cached?.employees||structuredClone(EMPLOYEES);messages=cached?.messages||[];ready=true;$('#login').hidden=true;$('#app').hidden=false;$('#demoNote').hidden=false;$('#identity').textContent='Démonstration';$('#connection').textContent='Données locales';render();$('#logout').onclick=()=>location.href=location.pathname;return;}
-try{const version='12.19.0';const libs=await Promise.all(['app','auth','firestore'].map(n=>import(`https://www.gstatic.com/firebasejs/${version}/firebase-${n}.js`)));sdk=Object.assign({},...libs);const app=sdk.initializeApp(firebaseConfig);auth=sdk.getAuth(app);db=sdk.getFirestore(app);$('#loginForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;$('#loginError').textContent='';try{await sdk.signInWithEmailAndPassword(auth,f.elements.email.value.trim(),f.elements.password.value);f.elements.password.value='';}catch(e){$('#loginError').textContent=message(e);}finally{b.disabled=false;}};$('#reset').onclick=async()=>{const email=$('#loginForm').elements.email.value.trim();if(!email){$('#loginError').textContent='Inscrivez votre courriel avant de demander la réinitialisation.';return;}try{await sdk.sendPasswordResetEmail(auth,email);toast('Si ce compte existe, un courriel de réinitialisation sera envoyé.');}catch(e){$('#loginError').textContent=message(e);}};$('#logout').onclick=()=>sdk.signOut(auth);
-sdk.onAuthStateChanged(auth,async next=>{modules.stop();unsubs.forEach(fn=>fn());unsubs=[];metricUnsubs.forEach(fn=>fn());metricUnsubs=[];metricYear='';user=next;ready=false;records=[];goals={};departmentData={};team=[];employees=[];messages=[];$('#error').hidden=true;if(!next){$('#login').hidden=false;$('#app').hidden=true;return;}try{const snap=await sdk.getDoc(sdk.doc(db,'users',next.uid));if(!snap.exists()||snap.data().active!==true||!['admin','directeur','employe'].includes(snap.data().role))throw Error('Votre compte n’a pas accès à la plateforme. Contactez votre administrateur.');profile=snap.data();if(profile.invitationStatus==='pending'){await sdk.setDoc(sdk.doc(db,'users',next.uid),{invitationStatus:'active',lastLoginAt:new Date().toISOString()},{merge:true});profile.invitationStatus='active';}$('#identity').textContent=profile.name||next.email;$('#login').hidden=true;$('#app').hidden=false;$('#connection').textContent='Synchronisation…';render();unsubs.push(sdk.onSnapshot(sdk.collection(db,'vehicles'),snap=>{records=snap.docs.map(d=>({...d.data(),id:d.id}));ready=true;$('#connection').textContent=navigator.onLine?'Données synchronisées':'Hors ligne : données en cache';render();},fail));if(canViewSubcategory(profile,'settings','vente'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'goals'),snap=>{goals=Object.fromEntries(snap.docs.map(d=>[d.id,d.data()]));render();},fail));if(canViewTeam(profile,'users'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'employees'),s=>{employees=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));if(canViewTeam(profile,'messages'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'messages'),s=>{messages=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));if(profile.role==='admin')seedEmployees().catch(fail);if(canManageAccess(profile))unsubs.push(sdk.onSnapshot(sdk.collection(db,'users'),s=>{team=s.docs.map(d=>({...d.data(),uid:d.id}));render();},fail));unsubs.push(sdk.onSnapshot(sdk.doc(db,'users',next.uid),s=>{if(!s.exists()||!s.data().active||!['admin','directeur','employe'].includes(s.data().role))sdk.signOut(auth);else{const updated=s.data(),changed=JSON.stringify(profile.permissions||{})!==JSON.stringify(updated.permissions||{})||profile.role!==updated.role||profile.department!==updated.department;if(changed){location.reload();return;}profile=updated;$('#identity').textContent=(profile.name||next.email)+(profile.poste?' · '+profile.poste:'');render();}},fail));}catch(e){$('#loginError').textContent=message(e);await sdk.signOut(auth);}});
-}catch(e){$('#loginError').textContent='Impossible de charger Firebase. Vérifiez la connexion Internet. '+message(e);}}
-window.addEventListener('offline',()=>{if(!demo)$('#connection').textContent='Hors ligne : les écritures attendront la connexion';});window.addEventListener('online',()=>{if(!demo)$('#connection').textContent='Connexion rétablie';});
+try{
+  if(!/^https:\/\/.+\.supabase\.co$/.test(supabaseConfig.url)||!supabaseConfig.publishableKey||supabaseConfig.publishableKey.startsWith('REMPLACER_'))
+    throw Error('Configuration Supabase manquante : renseigner la clé publique dans supabase-config.js.');
+  const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  const client=createClient(supabaseConfig.url,supabaseConfig.publishableKey,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+  });
+  sdk=createSupabaseBridge(client);auth=client;db=client;
+  const invitationLink=location.hash.includes('type=invite')||location.search.includes('type=invite');
+  client.auth.onAuthStateChange((event)=>{
+    if(event==='PASSWORD_RECOVERY'||(invitationLink&&event==='SIGNED_IN')){
+      queueMicrotask(()=>{const dlg=$('#passwordDialog');if(dlg&&!dlg.open)dlg.showModal();});
+    }
+  });
+  const pwForm=$('#passwordForm');
+  pwForm.onsubmit=async ev=>{
+    ev.preventDefault();
+    const pass=pwForm.elements.password.value;
+    if(pass.length<12){$('#passwordError').textContent='Choisissez au moins 12 caractères.';return;}
+    const submit=pwForm.querySelector('[type=submit]');submit.disabled=true;
+    const {error}=await client.auth.updateUser({password:pass});
+    submit.disabled=false;
+    if(error){$('#passwordError').textContent=error.message;return;}
+    pwForm.reset();$('#passwordDialog').close();
+    toast('Mot de passe enregistré.');
+  };
+$('#loginForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;$('#loginError').textContent='';try{await sdk.signInWithEmailAndPassword(auth,f.elements.email.value.trim(),f.elements.password.value);f.elements.password.value='';}catch(e){$('#loginError').textContent=message(e);}finally{b.disabled=false;}};$('#reset').onclick=async()=>{const email=$('#loginForm').elements.email.value.trim();if(!email){$('#loginError').textContent='Inscrivez votre courriel avant de demander la réinitialisation.';return;}try{await sdk.sendPasswordResetEmail(auth,email);toast('Si ce compte existe, un courriel de réinitialisation sera envoyé.');}catch(e){$('#loginError').textContent=message(e);}};$('#logout').onclick=()=>sdk.signOut(auth);
+let authGeneration=0;
+sdk.onAuthStateChanged(auth,async next=>{const generation=++authGeneration;modules.stop();unsubs.forEach(fn=>fn());unsubs=[];metricUnsubs.forEach(fn=>fn());metricUnsubs=[];metricYear='';user=next;ready=false;records=[];goals={};departmentData={};team=[];employees=[];messages=[];$('#error').hidden=true;if(!next){$('#login').hidden=false;$('#app').hidden=true;return;}try{const snap=await sdk.getDoc(sdk.doc(db,'users',next.uid));if(generation!==authGeneration)return;if(!snap.exists()||snap.data().active!==true||!['admin','directeur','employe'].includes(snap.data().role))throw Error('Votre compte n’a pas accès à la plateforme. Contactez votre administrateur.');profile=snap.data();if(profile.invitationStatus==='pending'){await sdk.setDoc(sdk.doc(db,'users',next.uid),{invitationStatus:'active',lastLoginAt:new Date().toISOString()},{merge:true});profile.invitationStatus='active';}$('#identity').textContent=profile.name||next.email;$('#login').hidden=true;$('#app').hidden=false;$('#connection').textContent='Synchronisation…';render();unsubs.push(sdk.onSnapshot(sdk.collection(db,'vehicles'),snap=>{records=snap.docs.map(d=>({...d.data(),id:d.id}));ready=true;$('#connection').textContent=navigator.onLine?'Données synchronisées':'Hors ligne : données en cache';render();},fail));if(canViewSubcategory(profile,'settings','vente'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'goals'),snap=>{goals=Object.fromEntries(snap.docs.map(d=>[d.id,d.data()]));render();},fail));if(canViewTeam(profile,'users'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'employees'),s=>{employees=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));if(canViewTeam(profile,'messages'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'messages'),s=>{messages=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));/* Les 38 employés ont déjà été migrés : pas de réensemencement automatique. */if(canManageAccess(profile))unsubs.push(sdk.onSnapshot(sdk.collection(db,'users'),s=>{team=s.docs.map(d=>({...d.data(),uid:d.id}));render();},fail));unsubs.push(sdk.onSnapshot(sdk.doc(db,'users',next.uid),s=>{if(!s.exists()||!s.data().active||!['admin','directeur','employe'].includes(s.data().role))sdk.signOut(auth);else{const updated=s.data(),changed=JSON.stringify(profile.permissions||{})!==JSON.stringify(updated.permissions||{})||profile.role!==updated.role||profile.department!==updated.department;if(changed){location.reload();return;}profile=updated;$('#identity').textContent=(profile.name||next.email)+(profile.poste?' · '+profile.poste:'');render();}},fail));}catch(e){$('#loginError').textContent=message(e);await sdk.signOut(auth);}});
+}catch(e){$('#loginError').textContent='Impossible de charger Supabase. Vérifiez la configuration et Internet. '+message(e);}}
+window.addEventListener('offline',()=>{if(!demo)$('#connection').textContent='Hors ligne : reconnectez-vous avant d’enregistrer';});window.addEventListener('online',()=>{if(!demo)$('#connection').textContent='Connexion rétablie';});
 
 let editingUser=null;
 function renderSidebars(){for(const group of Object.keys(SUBMENUS)){const views=availableSubcategories(profile,group),parent=document.querySelector(`[data-tab="${group}"]`);if(!parent)continue;parent.hidden=!views.length;const sub=$(group==='team'?'#teamSubnav':'#objectiveSubnav');sub.hidden=tab!==group||!views.length;const selected=group==='team'?teamView:objectiveView;sub.innerHTML=views.map(([k,label])=>`<button data-subcategory="${k}" class="${selected===k?'selected':''}">${label}</button>`).join('');sub.querySelectorAll('[data-subcategory]').forEach(b=>b.onclick=()=>{const key=b.dataset.subcategory;if(!canViewSubcategory(profile,group,key))return;modules.leave();if(group==='team')teamView=key;else objectiveView=key;tab=group;render();});}}
-function subscribeMetrics(){if(demo||!db||!profile||tab!=='settings')return;const year=monthKey().slice(0,4);if(metricYear===year)return;metricUnsubs.forEach(fn=>fn());metricUnsubs=[];metricYear=year;departmentData={};for(const [section]of availableSubcategories(profile,'settings'))for(let i=1;i<=12;i++){const id=section+'_'+year+'-'+String(i).padStart(2,'0');metricUnsubs.push(sdk.onSnapshot(sdk.doc(db,'departmentMetrics',id),s=>{if(s.exists())departmentData[id]=s.data();else delete departmentData[id];if(tab==='settings')render();},fail));}}
+function subscribeMetrics(){
+ if(demo||!db||!profile||tab!=='settings')return;
+ const year=monthKey().slice(0,4);
+ if(metricYear===year)return;
+ metricUnsubs.forEach(fn=>fn());metricUnsubs=[];
+ metricYear=year;departmentData={};
+ const allowed=new Set(availableSubcategories(profile,'settings').map(([key])=>key));
+ if(!allowed.size)return;
+ // Un abonnement par année plutôt que 12 par département.
+ metricUnsubs.push(sdk.onSnapshot(sdk.collection(db,'departmentMetrics'),snap=>{
+   departmentData=Object.fromEntries(snap.docs
+     .filter(d=>allowed.has(d.id.split('_')[0])&&d.id.split('_')[1]?.startsWith(year+'-'))
+     .map(d=>[d.id,d.data()]));
+   if(tab==='settings')render();
+ },fail));
+}
 function teamShell(content){$('#metrics').innerHTML='';$('#content').innerHTML=content;}
 function renderTeam(){
  if(!canViewTeam(profile,teamView))return;
@@ -119,11 +162,23 @@ function renderTeam(){
  const admin=canManageAccess(profile);let html=admin?'<div class="toolbar"><button id="openInvites" class="primary">Invitations en lot</button><span class="muted">Ajouter les courriels, choisir les profils, puis envoyer les invitations.</span></div>':'';
  for(const [k,label]of Object.entries(DEPARTMENTS)){
   const rows=employees.filter(e=>e.department===k);
-  html+=`<h3>${label}</h3><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Poste</th><th>Courriel</th><th>Accès</th><th></th></tr></thead><tbody>${rows.map(e=>{const account=team.find(u=>u.uid===e.uid);return `<tr><td><strong>${esc(e.name)}</strong></td><td>${esc(e.poste)}</td><td>${esc(e.email||'À compléter')}</td><td>${e.uid?(account?.active===false?'Inactif':account?.invitationStatus==='active'?'Connecté':e.invitationStatus==='sent'?'Invitation envoyée':'Compte créé'):'À créer'}${admin?'<small>'+esc(ROLES[account?.role||e.accessRole]||'Employé')+'</small>':''}</td><td><button data-employee="${esc(e.id)}">Modifier</button></td></tr>`;}).join('')||'<tr><td colspan="5">Aucun employé renseigné.</td></tr>'}</tbody></table></div>`;
+  html+=`<h3>${label}</h3><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Poste</th><th>Courriel</th><th>Accès</th><th></th></tr></thead><tbody>${rows.map(e=>{const account=team.find(u=>u.uid===e.uid);const canInvite=admin&&!demo&&location.pathname==='/levis-subaru/'&&validEmail(e.email)&&account?.invitationStatus!=='active';return `<tr><td><strong>${esc(e.name)}</strong></td><td>${esc(e.poste)}</td><td>${esc(e.email||'À compléter')}</td><td>${e.uid?(account?.active===false?'Inactif':account?.invitationStatus==='active'?'Connecté':e.invitationStatus==='sent'?'Invitation envoyée':'Compte créé'):'À créer'}${admin?'<small>'+esc(ROLES[account?.role||e.accessRole]||'Employé')+'</small>':''}</td><td><button data-employee="${esc(e.id)}">Modifier</button>${canInvite?` <button type="button" data-employee-invite="${esc(e.id)}">Envoyer invitation</button>`:""}</td></tr>`;}).join('')||'<tr><td colspan="5">Aucun employé renseigné.</td></tr>'}</tbody></table></div>`;
  }
  if(admin){const linked=new Set(employees.map(e=>e.uid));html+='<h3>Autres comptes existants</h3>'+team.filter(u=>!linked.has(u.uid)).map(u=>`<p>${esc(u.name)} · ${esc(u.poste||'Poste à préciser')} <button data-user="${esc(u.uid)}">Modifier</button></p>`).join('');}
  teamShell(html);if(admin)$('#openInvites').onclick=()=>{inviteDraft=employees.map(e=>{const a=team.find(u=>u.uid===e.uid);return {...e,email:a?.email||e.email||'',role:a?.role||e.accessRole||'employe',department:a?.department||e.department,selected:!e.uid&&validEmail(e.email)};});render();};
  document.querySelectorAll('[data-employee]').forEach(b=>b.onclick=()=>openEmployee(b.dataset.employee));
+ document.querySelectorAll('[data-employee-invite]').forEach(b=>b.onclick=async()=>{
+   const employee=employees.find(e=>e.id===b.dataset.employeeInvite);
+   if(!employee||!validEmail(employee.email)||!canManageAccess(profile))return;
+   b.disabled=true;
+   try{
+     const role=employee.accessRole||'employe';
+     const result=await sdk.inviteEmployee({...employee,role});
+     if(result?.invitationStatus!=='sent')throw Error('Envoi non confirmé par le serveur.');
+     toast('Invitation envoyée à '+employee.email);
+   }catch(error){fail(error);}
+   finally{b.disabled=false;}
+ });
  document.querySelectorAll('[data-user]').forEach(b=>b.onclick=()=>{editingEmployee=null;openTeam(b.dataset.user);});
 }
 function openEmployee(id){editingEmployee=employees.find(e=>e.id===id)||null;openTeam(editingEmployee?.uid);const f=$('#teamForm');if(editingEmployee){for(const k of ['name','poste','email','department'])f.elements[k].value=editingEmployee[k]||(k==='department'?'vente':'');if(!editingUser)f.elements.role.value=editingEmployee.accessRole||'employe';$('#teamTitle').textContent='Modifier un employé';updateAccessExplanation();}}
@@ -136,7 +191,10 @@ function openTeam(uid){
  for(const k of ['name','poste','email','role','department'])f.elements[k].value=editingUser?.[k]||(k==='role'?'employe':k==='department'?'vente':'');
  f.elements.active.checked=editingUser?.active??true;f.elements.role.disabled=!admin||uid===user.uid;f.elements.active.disabled=!admin||uid===user.uid;
  $('#roleField').hidden=!admin;$('#activeField').hidden=!admin;f.elements.email.readOnly=!!uid&&admin;
- f.elements.role.onchange=f.elements.department.onchange=updateAccessExplanation;updateAccessExplanation();$('#teamDialog').showModal();
+ f.elements.role.onchange=f.elements.department.onchange=updateAccessExplanation;updateAccessExplanation();
+ f.dataset.employeeId='';
+ $('#teamSaveAndInvite').hidden=!admin||demo||location.pathname!=='/levis-subaru/'||uid===user.uid;
+ $('#teamDialog').showModal();
 }
 async function seedEmployees(){for(const e of EMPLOYEES){await sdk.runTransaction(db,async tx=>{const ref=sdk.doc(db,'employees',e.id),snap=await tx.get(ref);if(!snap.exists()){const data={...e};delete data.id;tx.set(ref,data);}});}}
 function renderMessages(){
@@ -148,30 +206,42 @@ function renderMessages(){
 }
 $('#teamClose').onclick=$('#teamCancel').onclick=()=>$('#teamDialog').close();
 $('#teamForm').onsubmit=async e=>{
- e.preventDefault();const f=e.target,btn=$('#teamSave'),admin=canManageAccess(profile);btn.disabled=true;$('#teamError').textContent='';
+ e.preventDefault();const f=e.target,btn=$('#teamSave'),inviteButton=$('#teamSaveAndInvite'),admin=canManageAccess(profile);
+ const sendInvitation=e.submitter?.id==='teamSaveAndInvite';
+ if(sendInvitation&&(!admin||demo||location.pathname!=='/levis-subaru/'))return;
+ btn.disabled=true;inviteButton.disabled=true;$('#teamError').textContent='';
  try{
   const data={name:f.elements.name.value.trim(),poste:f.elements.poste.value.trim(),email:f.elements.email.value.trim().toLowerCase(),department:f.elements.department.value};
   if(!data.name||!data.poste)throw Error('Le nom et le poste sont obligatoires.');if(data.email&&!validEmail(data.email))throw Error('Courriel invalide.');
   const access={role:admin?f.elements.role.value:'employe',active:f.elements.active.checked};
   if(admin&&access.role==='directeur'&&!['vente','service','piece','esthetique'].includes(data.department))throw Error('Choisissez le département KPI du directeur.');
   if(editingUser?.uid===user.uid){access.role='admin';access.active=true;}
-  const id=editingEmployee?.id||('custom-'+newId()),employeeData={...data,...(admin?{accessRole:access.role}:{})};
+  if(sendInvitation&&!validEmail(data.email))throw Error('Ajoutez une adresse courriel valide pour envoyer une invitation.');
+  const id=editingEmployee?.id||f.dataset.employeeId||('custom-'+newId()),employeeData={...data,...(admin?{accessRole:access.role}:{})};
+  f.dataset.employeeId=id;
   if(editingUser){if(demo)team=team.map(u=>u.uid===editingUser.uid?{...u,...data,...access}:u);else await sdk.setDoc(sdk.doc(db,'users',editingUser.uid),{...data,...access,updatedAt:new Date().toISOString()},{merge:true});employeeData.uid=editingUser.uid;}
   if(demo){const exists=employees.find(e=>e.id===id);employees=exists?employees.map(e=>e.id===id?{...e,...employeeData}:e):[...employees,{id,...employeeData}];persistDemo();}
   else await sdk.setDoc(sdk.doc(db,'employees',id),employeeData,{merge:true});
-  editingEmployee=null;$('#teamDialog').close();toast('Fiche enregistrée');render();
- }catch(err){$('#teamError').textContent=message(err);}finally{btn.disabled=false;}
+  if(sendInvitation){
+    const result=await sdk.inviteEmployee({id,...employeeData,role:access.role});
+    if(result?.invitationStatus!=='sent')throw Error('Supabase n’a pas confirmé l’envoi.');
+  }
+  editingEmployee=null;$('#teamDialog').close();
+  toast(sendInvitation?'Fiche enregistrée et invitation envoyée.':'Fiche enregistrée');render();
+ }catch(err){$('#teamError').textContent=message(err);}finally{btn.disabled=false;inviteButton.disabled=false;}
 };
 function renderInvitations(){
  if(!canManageAccess(profile))return;document.querySelectorAll('[data-tab],[data-subcategory]').forEach(b=>b.disabled=inviting);$('#logout').disabled=inviting;$('#add').disabled=inviting;const disabled=inviting?'disabled':'';
- const rows=inviteDraft.map((e,i)=>{const a=team.find(u=>u.uid===e.uid);const state=e.result||(a?.invitationStatus==='active'?'Connecté':e.invitationStatus==='sent'?'Invitation envoyée':e.invitationStatus==='error'?'Envoi à reprendre':e.uid?'Compte créé':!e.email?'Courriel à compléter':'À inviter');return `<tr><td><input type="checkbox" aria-label="Inviter ${esc(e.name)}" data-invite-select="${i}" ${e.selected?'checked':''} ${disabled}></td><td><strong>${esc(e.name)}</strong><small>${esc(e.poste)}</small></td><td><input aria-label="Courriel de ${esc(e.name)}" data-invite-email="${i}" type="email" value="${esc(e.email)}" ${e.uid?'readonly':''} ${disabled}></td><td><select aria-label="Département de ${esc(e.name)}" data-invite-department="${i}" ${disabled}>${Object.entries(DEPARTMENTS).map(([k,l])=>`<option value="${k}" ${k===e.department?'selected':''}>${l}</option>`).join('')}</select></td><td><select aria-label="Profil de ${esc(e.name)}" data-invite-role="${i}" ${disabled} ${e.uid===user.uid?'disabled':''}>${Object.entries(ROLES).map(([k,l])=>`<option value="${k}" ${k===e.role?'selected':''}>${l}</option>`).join('')}</select></td><td class="invite-state">${esc(state)}</td></tr>`;}).join('');
- teamShell(`<div class="toolbar"><button id="closeInvites" ${disabled}>← Utilisateurs</button><h2>Invitations en lot</h2></div><p>Complétez les adresses ou collez une liste depuis Excel. Vérifiez les profils et cochez les destinataires. Chaque personne choisira son mot de passe par courriel.</p><details class="roster-import"><summary>Coller une liste depuis Excel ou CSV</summary><p>Colonnes : Nom ; Courriel ; Département ; Poste ; Profil (employe, directeur ou admin).</p><textarea id="rosterText" rows="4" placeholder="Nom;Courriel;Département;Poste;Profil" ${disabled}></textarea><button id="importRoster" ${disabled}>Préparer la liste</button></details><div class="toolbar"><button id="selectInvites" ${disabled}>Cocher les adresses complétées</button><button id="saveRoster" ${disabled}>Enregistrer la liste</button><button id="sendInvites" class="primary" ${disabled}>${demo?'Simuler les invitations sélectionnées':'Envoyer les invitations sélectionnées'}</button></div><p class="muted">Les comptes existants reçoivent un lien de réinitialisation. Aucun mot de passe n’est affiché ou envoyé. Utilisez le dernier courriel reçu. Maximum 50 personnes par lot.</p><p id="inviteError" role="alert" class="error"></p><p id="inviteProgress" role="status">${inviting?'Envoi en cours…':''}</p><div class="table-wrap invitation-table"><table><thead><tr><th>Inviter</th><th>Employé</th><th>Courriel</th><th>Département</th><th>Profil</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+ const rows=inviteDraft.map((e,i)=>{const a=team.find(u=>u.uid===e.uid);const state=e.result||(a?.invitationStatus==='active'?'Connecté':e.invitationStatus==='pending'?'Activation à compléter':e.invitationStatus==='error'?'Invitation à reprendre':e.uid?'Compte créé':!e.email?'Courriel à compléter':'À inviter');return `<tr><td><input type="checkbox" aria-label="Inviter ${esc(e.name)}" data-invite-select="${i}" ${e.selected?'checked':''} ${disabled}></td><td><strong>${esc(e.name)}</strong><small>${esc(e.poste)}</small></td><td><input aria-label="Courriel de ${esc(e.name)}" data-invite-email="${i}" type="email" value="${esc(e.email)}" ${e.uid?'readonly':''} ${disabled}></td><td><select aria-label="Département de ${esc(e.name)}" data-invite-department="${i}" ${disabled}>${Object.entries(DEPARTMENTS).map(([k,l])=>`<option value="${k}" ${k===e.department?'selected':''}>${l}</option>`).join('')}</select></td><td><select aria-label="Profil de ${esc(e.name)}" data-invite-role="${i}" ${disabled} ${e.uid===user.uid?'disabled':''}>${Object.entries(ROLES).map(([k,l])=>`<option value="${k}" ${k===e.role?'selected':''}>${l}</option>`).join('')}</select></td><td class="invite-state">${esc(state)}</td></tr>`;}).join('');
+ teamShell(`<div class="toolbar"><button id="closeInvites" ${disabled}>← Utilisateurs</button><h2>Invitations en lot</h2></div><p>Complétez les adresses ou collez une liste depuis Excel. Vérifiez les profils et cochez les destinataires. Entrez les courriels des employés et envoyez leurs invitations directement depuis la plateforme. Chaque employé recevra son propre lien d’activation.</p><details class="roster-import"><summary>Coller une liste depuis Excel ou CSV</summary><p>Colonnes : Nom ; Courriel ; Département ; Poste ; Profil (employe, directeur ou admin).</p><textarea id="rosterText" rows="4" placeholder="Nom;Courriel;Département;Poste;Profil" ${disabled}></textarea><button id="importRoster" ${disabled}>Préparer la liste</button></details><div class="toolbar"><button id="selectInvites" ${disabled}>Cocher les adresses complétées</button><button id="saveRoster" ${disabled}>Enregistrer la liste</button><button id="sendInvites" class="primary" ${disabled}>${demo?'Simuler les invitations sélectionnées':location.pathname==='/levis-subaru/'?'Envoyer les invitations':'Invitations désactivées sur le site test'}</button></div><p class="muted">Les invitations sont envoyées automatiquement par le serveur de courriel configuré dans Supabase. Vous n’avez pas à ouvrir Outlook ni copier de lien. Maximum 50 personnes par lot.</p><p id="inviteError" role="alert" class="error"></p><p id="inviteProgress" role="status">${inviting?'Envoi en cours…':''}</p><div class="table-wrap invitation-table"><table><thead><tr><th>Inviter</th><th>Employé</th><th>Courriel</th><th>Département</th><th>Profil</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table></div>`);
  $('#closeInvites').onclick=()=>{inviteDraft=null;render();};
  for(const [attr,key,kind]of [['email','email','input'],['department','department','change'],['role','role','change'],['select','selected','change']])document.querySelectorAll('[data-invite-'+attr+']').forEach(input=>input.addEventListener(kind,()=>{const row=inviteDraft[Number(input.getAttribute('data-invite-'+attr))];row[key]=key==='selected'?input.checked:key==='email'?input.value.trim().toLowerCase():input.value;}));
  $('#selectInvites').onclick=()=>{for(const e of inviteDraft)e.selected=validEmail(e.email);renderInvitations();};
  $('#importRoster').onclick=()=>{try{const rows=parseRoster($('#rosterText').value,employees);const merged=new Map(inviteDraft.map(e=>[e.id,e]));for(const row of rows){const existing=merged.get(row.id);if(existing?.uid===user.uid)row.role='admin';if(existing?.uid&&existing.email!==row.email)throw Error(row.name+' : le courriel du compte existant ne peut pas être remplacé par import.');merged.set(row.id,{...existing,...row});}inviteDraft=[...merged.values()];renderInvitations();}catch(err){$('#inviteError').textContent=message(err);}};
  $('#saveRoster').onclick=async()=>{try{await saveRosterDraft(inviteDraft.filter(e=>e.email.trim()));toast('Liste enregistrée');renderInvitations();}catch(err){$('#inviteError').textContent=message(err);}};
  $('#sendInvites').onclick=sendSelectedInvitations;
+ if(!demo&&location.pathname!=='/levis-subaru/')$('#sendInvites').disabled=true;
+
 }
 async function saveRosterDraft(rows){
  if(!canManageAccess(profile))throw Error('Accès administrateur requis.');const errors=draftErrors(rows);if(errors.length)throw Error(errors.join('\n'));
@@ -184,7 +254,10 @@ async function saveRosterDraft(rows){
  }
 }
 async function sendSelectedInvitations(){
- if(inviting||!canManageAccess(profile))return;const selected=inviteDraft.filter(e=>e.selected);
+ if(inviting||!canManageAccess(profile))return;
+ if(!demo&&location.pathname!=='/levis-subaru/'){
+   $('#inviteError').textContent='Les invitations ne peuvent être créées que depuis le site officiel.';return;
+ }const selected=inviteDraft.filter(e=>e.selected);
  try{
   if(!selected.length)throw Error('Cochez les destinataires.');if(selected.length>50)throw Error('Sélectionnez au maximum 50 personnes par lot.');const errors=draftErrors(selected);if(errors.length)throw Error(errors.join('\n'));
   inviting=true;renderInvitations();await saveRosterDraft(selected);let sent=0;
@@ -195,13 +268,14 @@ async function sendSelectedInvitations(){
     if(account?.active===false)throw Error('Compte inactif : réactivez-le avant de l’inviter.');
     let result;
     if(demo){const uid=e.uid||newId();if(!e.uid)team.push({uid,name:e.name,poste:e.poste,email:e.email,department:e.department,role:e.role,active:true,invitationStatus:'pending'});result={uid,invitationStatus:'sent'};}
-    else result=await inviteEmployee({sdk,db,firebaseConfig,employee:e,account,adminUid:user.uid});
-    e.uid=result.uid;e.invitationStatus=result.invitationStatus;e.result=demo?'Invitation simulée':'Invitation envoyée';sent++;
+    else result=await sdk.inviteEmployee(e);
+    e.uid=result.uid;e.invitationStatus=result.invitationStatus;
+    e.result=demo?'Invitation simulée':'Invitation envoyée';sent++;
     if(demo){employees=employees.map(x=>x.id===e.id?{...x,uid:e.uid,invitationStatus:e.invitationStatus}:x);persistDemo();}
    }catch(error){if(error.accountUid)e.uid=error.accountUid;e.result='Échec : '+message(error);}
    e.selected=false;
   }
-  inviting=false;renderInvitations();$('#inviteProgress').textContent=`${sent} / ${selected.length} invitation(s) ${demo?'simulée(s)':'acceptée(s) par Firebase'}. Consultez le statut de chaque ligne.`;
+  inviting=false;renderInvitations();$('#inviteProgress').textContent=`${sent} / ${selected.length} invitation(s) ${demo?'simulée(s)':'envoyée(s) par Supabase'}. Consultez les résultats pour chaque employé.`;
  }catch(error){inviting=false;renderInvitations();$('#inviteError').textContent=message(error);}
 }
 

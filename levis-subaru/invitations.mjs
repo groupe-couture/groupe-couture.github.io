@@ -3,7 +3,6 @@ export const ROLES={employe:'Employé',directeur:'Directeur de département',adm
 export const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
 export const validEmail=s=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s||'');
 export function newId(){const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);return Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');}
-function password(){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);return 'aA7!'+Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');}
 export function draftErrors(rows){
  const emails=new Map(),errors=[];
  for(const [index,row]of rows.entries()){
@@ -32,29 +31,11 @@ export function parseRoster(text,employees){
  }
  const errors=draftErrors(rows);if(errors.length)throw Error(errors.join('\n'));return rows;
 }
-export async function inviteEmployee({sdk,db,firebaseConfig,employee,account,adminUid,now=()=>new Date().toISOString()}){
- if(draftErrors([employee]).length)throw Error(draftErrors([employee]).join(' '));
- if(employee.uid&&!account)throw Error('Le compte lié est introuvable. Vérifiez sa fiche avant de renvoyer une invitation.');
- if(account&&(!account.active||account.email?.toLowerCase()!==employee.email.toLowerCase()))throw Error('Le compte est inactif ou son courriel diffère de la fiche. Corrigez la fiche avant d’inviter.');
- let app,created,committed=false;
- try{
-  app=sdk.initializeApp(firebaseConfig,'invitation-'+newId());const auth=sdk.getAuth(app);auth.languageCode='fr';await sdk.setPersistence(auth,sdk.inMemoryPersistence);
-  const at=now();let uid=account?.uid;
-  if(!uid){
-   created=(await sdk.createUserWithEmailAndPassword(auth,employee.email,password())).user;uid=created.uid;
-   const batch=sdk.writeBatch(db);
-   batch.set(sdk.doc(db,'users',uid),{name:employee.name,poste:employee.poste,email:employee.email.toLowerCase(),department:employee.department,role:employee.role,active:true,invitationStatus:'pending',createdAt:at,createdBy:adminUid});
-   batch.set(sdk.doc(db,'employees',employee.id),{name:employee.name,poste:employee.poste,email:employee.email.toLowerCase(),department:employee.department,uid,invitationStatus:'pending'},{merge:true});
-   await batch.commit();committed=true;
-  }
-  try{await sdk.sendPasswordResetEmail(auth,employee.email,{url:'https://preparation-levis-subaru.web.app/',handleCodeInApp:false});}
-  catch(error){error.accountUid=uid;error.stage='email';await sdk.setDoc(sdk.doc(db,'employees',employee.id),{invitationStatus:'error',invitationError:error.code||'email-failed'},{merge:true});throw error;}
-  // A successful call means Firebase accepted the request, not that the mailbox received it.
-  await sdk.setDoc(sdk.doc(db,'employees',employee.id),{invitationStatus:'sent',invitationSentAt:now(),invitationError:''},{merge:true});
-  return {uid,invitationStatus:'sent'};
- }catch(error){
-  if(created&&!committed){try{await sdk.deleteUser(created);}catch{error.message+=' Le compte Auth créé doit être vérifié dans Firebase.';}}
-  if(error.code==='auth/email-already-in-use')error.message='Ce courriel possède déjà un compte. Reliez sa fiche au compte existant avant de réessayer.';
-  throw error;
- }finally{if(app){try{await sdk.signOut(sdk.getAuth(app));}catch{}await sdk.deleteApp(app);}}
+// Les invitations sont effectuées par la fonction Supabase serveur.
+export async function inviteEmployee({sdk,employee,account}){
+ const errors=draftErrors([employee]);
+ if(errors.length)throw Error(errors.join(' '));
+ if(account&&(!account.active||account.email?.toLowerCase()!==employee.email.toLowerCase()))
+   throw Error('Compte inactif ou adresse courriel différente de la fiche.');
+ return sdk.inviteEmployee(employee);
 }
