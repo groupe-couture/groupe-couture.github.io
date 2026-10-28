@@ -1,0 +1,13 @@
+# Standard des projets de Dany — commun à tous les projets
+
+# Fichiers produits (ils vont dans une Release GitHub, jamais dans git)
+build/
+dist/
+*.dmg
+*.pkg
+*.app/
+*.zip
+*.exe
+*.msi
+
+.DS_Store

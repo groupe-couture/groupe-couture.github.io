@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Groupe Couture</title>
+<meta name="description" content="Les applications du Groupe Couture : Lévis Subaru et la plateforme interne des concessions.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23185FA5'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='15' font-weight='700' text-anchor='middle' fill='white'%3EGC%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f3f5fb; --text: #16213a; --muted: #55607a; --focus: #185fa5;
+    --hero-bg: #185fa5; --hero-text: #e6f1fb; --hero-sub: #b5d4f4;
+    --teal-bg: #e1f5ee; --teal-text: #085041; --teal-sub: #0f6e56;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11151d; --text: #e8ecf5; --muted: #9aa5bd; --focus: #85b7eb;
+      --hero-bg: #0c447c; --hero-text: #e6f1fb; --hero-sub: #b5d4f4;
+      --teal-bg: #04342c; --teal-text: #e1f5ee; --teal-sub: #5dcaa5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 56px 16px 40px; }
+  h1 { margin: 0; font-size: clamp(2rem, 6vw, 2.75rem); line-height: 1.1; letter-spacing: -.02em; }
+  .sub { margin: 8px 0 32px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  /* Carte : le lien principal couvre toute la carte ; le lien « Code » passe par-dessus. */
+  .card { border-radius: 16px; padding: 20px; transition: transform .15s ease; position: relative; }
+  .card:hover { transform: translateY(-3px); }
+  .card:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .card svg { width: 28px; height: 28px; display: block; margin-bottom: 14px;
+    fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .card h2 { margin: 0; font-size: 1.1rem; }
+  .card h2 a { color: inherit; text-decoration: none; outline: none; }
+  .card h2 a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+  .card p { margin: 4px 0 0; font-size: .9rem; }
+  .card .go { position: absolute; top: 18px; right: 18px; width: 20px; height: 20px; margin: 0; opacity: .7; }
+  .card .code { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 14px; padding: 4px 10px; border-radius: 999px; font-size: .8rem;
+    color: inherit; text-decoration: none; background: color-mix(in srgb, currentColor 12%, transparent); }
+  .card .code:hover { background: color-mix(in srgb, currentColor 22%, transparent); }
+  .card .code:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .card .code svg { width: 14px; height: 14px; margin: 0; }
+  .hero { grid-column: 1 / -1; background: var(--hero-bg); color: var(--hero-text); padding: 26px 22px; }
+  .hero p { color: var(--hero-sub); }
+  .hero h2 { font-size: 1.35rem; }
+  .teal { background: var(--teal-bg); color: var(--teal-text); } .teal p { color: var(--teal-sub); }
+  .wide { grid-column: 1 / -1; }
+  footer { margin-top: 36px; text-align: center; font-size: .85rem; color: var(--muted); }
+  footer a { color: inherit; }
+  @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .card { transition: none; } .card:hover { transform: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Groupe Couture</h1>
+  <p class="sub">Les applications du Groupe</p>
+
+  <nav class="grid" aria-label="Applications du Groupe Couture">
+    <div class="card hero">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M6 17l1.5-5h9L18 17M7.5 12 9 8h6l1.5 4"/><circle cx="8" cy="17.5" r="1.5"/><circle cx="16" cy="17.5" r="1.5"/></svg>
+      <svg class="go" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+      <h2><a href="https://levis-subaru.web.app/">Lévis Subaru</a></h2>
+      <p>Préparation VO, ventes, service, livraison et KPI</p>
+      <a class="code" href="https://github.com/groupe-couture/levis-subaru" title="Réservé aux membres de l'organisation">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/></svg>Code sur GitHub
+      </a>
+    </div>
+    <div class="card teal wide">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10l8-6 8 6v10M9 20v-6h6v6"/></svg>
+      <svg class="go" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+      <h2><a href="https://github.com/groupe-couture/plateforme-groupe-couture" title="Réservé aux membres de l'organisation">Plateforme Groupe Couture</a></h2>
+      <p>Plateforme interne : concessions, opérations et KPI. Code sur GitHub, réservé aux membres.</p>
+    </div>
+  </nav>
+
+  <footer><a href="https://github.com/groupe-couture">github.com/groupe-couture</a></footer>
+</main>
+</body>
+</html>
