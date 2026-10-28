@@ -1,4 +1,4 @@
-import {stepsFor, progress, esc} from './domain.mjs?v=1.14.1';
+import {stepsFor, progress, esc} from './domain.mjs?v=1.15.0';
 const STATUS = {
  'À faire': {className:'todo', label:'à faire', mark:''},
  'En cours': {className:'ongoing', label:'en cours', mark:'•'},

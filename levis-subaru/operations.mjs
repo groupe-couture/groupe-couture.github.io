@@ -1,5 +1,5 @@
-import {today} from './domain.mjs?v=1.14.1';
-import {periodsForMonth,summarizeReports,number} from './reporting.mjs?v=1.14.1';
+import {today} from './domain.mjs?v=1.15.0';
+import {periodsForMonth,summarizeReports,number} from './reporting.mjs?v=1.15.0';
 export const INSPECTION_POINTS=[['engine','Moteur et fluides'],['brakes','Freinage et sécurité'],['steering','Direction et suspension'],['electric','Électricité et éclairage'],['cabin','Habitacle et équipements'],['body','Carrosserie et dessous'],['road','Essai routier']];
 export const INSPECTION_STATES=['Non vérifié','Conforme','À surveiller','Travaux requis'];
 export const money=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&Number.isFinite(Number(v))?Math.round(Number(v)*100)/100:null;
@@ -54,6 +54,33 @@ export function salesReporting(sales,finances,reports,{type,month,cutoff=today()
  return {values,periods,partial:periods.some(p=>p.partial),historicalPartial:periods.some(p=>p.historicalPartial),usesHistory:periods.some(p=>p.report&&!p.useDetailed)};
 }
 export const wholesaleProfit=x=>(cents(x.price)-cents(x.cost)-cents(x.fees))/100;
+// Wholesale is added only when reading KPIs. Historical retail reports and
+// saleFinancials keep their original meaning; nothing is written back to them.
+export function wholesaleMetrics(wholesale,{from,to,sales=[]}){
+ const retailStocks=new Set(sales.filter(s=>s.type==='VO'&&s.status!=='Annulée').map(s=>String(s.stock||'').trim().toUpperCase()).filter(Boolean));
+ const seen=new Set(),rows=[],excluded=[];
+ for(const w of wholesale){
+  if(w.status!=='Vendu'||!validDate(w.date)||w.date<from||w.date>to)continue;
+  const stock=String(w.stock||'').trim().toUpperCase();
+  if(!stock||retailStocks.has(stock)||seen.has(stock)){excluded.push(w);continue;}
+  if(['price','cost','fees'].some(k=>money(w[k])===null)){excluded.push(w);continue;}
+  seen.add(stock);rows.push(w);
+ }
+ return {rows,excluded,units:rows.length,profit:rows.reduce((n,w)=>n+cents(wholesaleProfit(w)),0)/100};
+}
+export function addWholesaleMetrics(summary,wholesale,{type,from,to,sales=[]}){
+ if(type!=='VO')return summary;
+ const w=wholesaleMetrics(wholesale,{from,to,sales}),base=summary.values,values={...base};
+ values.retailUnits=number(base.units);values.wholesaleUnits=w.units;values.wholesaleProfit=w.profit;
+ values.units=values.retailUnits===null&&!w.units?null:(values.retailUnits||0)+w.units;
+ values.vehicleKnown=(number(base.vehicleKnown)??(number(base.vehicleProfit)!==null?number(base.units)||0:0))+w.units;
+ values.financeKnown=number(base.financeKnown)??(number(base.financeProfit)!==null?number(base.units)||0:0);
+ values.vehicleProfit=number(base.vehicleProfit)===null&&!w.units?null:(number(base.vehicleProfit)||0)+w.profit;
+ values.vehicleAverage=values.vehicleKnown?values.vehicleProfit/values.vehicleKnown:null;
+ values.financeAverage=values.financeKnown?number(base.financeProfit)/values.financeKnown:null;
+ values.totalProfit=values.vehicleProfit===null&&number(base.financeProfit)===null?null:(values.vehicleProfit||0)+(number(base.financeProfit)||0);
+ return {...summary,values,wholesaleExcluded:w.excluded.length};
+}
 export function antiqueErrors(x){
  const e=[];for(const [k,l]of [['client','Client'],['model','Véhicule'],['vin','NIV'],['signer','Évaluateur']])if(!x[k]?.trim())e.push(l+' obligatoire.');
  if(!validDate(x.date)||x.date>today())e.push('Date invalide.');if(!Number.isInteger(x.year)||x.year<1886||x.year>Number(x.date?.slice(0,4)))e.push('Année du véhicule invalide.');
