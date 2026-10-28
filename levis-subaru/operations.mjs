@@ -1,4 +1,5 @@
-import {today} from './domain.mjs?v=1.14';
+import {today} from './domain.mjs?v=1.14.1';
+import {periodsForMonth,summarizeReports,number} from './reporting.mjs?v=1.14.1';
 export const INSPECTION_POINTS=[['engine','Moteur et fluides'],['brakes','Freinage et sécurité'],['steering','Direction et suspension'],['electric','Électricité et éclairage'],['cabin','Habitacle et équipements'],['body','Carrosserie et dessous'],['road','Essai routier']];
 export const INSPECTION_STATES=['Non vérifié','Conforme','À surveiller','Travaux requis'];
 export const money=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&Number.isFinite(Number(v))?Math.round(Number(v)*100)/100:null;
@@ -30,6 +31,27 @@ export function salesMetrics(sales,finances,{type,from,to}){
 export function wholesaleErrors(x){
  const e=[];for(const [k,l]of [['stock','Stock'],['model','Véhicule'],['buyer','Acheteur']])if(!x[k]?.trim())e.push(l+' obligatoire.');if(!validDate(x.date)||x.date>today())e.push('Date de vente invalide.');
  for(const k of ['price','cost','fees'])if(money(x[k])===null||money(x[k])<0)e.push('Prix, coût et frais doivent être renseignés et positifs ou nuls.');return e;
+}
+// Reconcile one weekly period at a time. A few newly keyed sales must never
+// replace a complete historical report for the whole month.
+export function salesReporting(sales,finances,reports,{type,month,cutoff=today()}){
+ const history=reports.filter(r=>r.department==='vente'&&r.kind===type&&r.month===month&&r.submitted&&r.periodEnd<=cutoff);
+ const periods=periodsForMonth(month).filter(p=>p.periodStart<=cutoff).map(p=>{
+  const report=history.find(r=>r.periodEnd===p.periodEnd);
+  const detail=salesMetrics(sales,finances,{type,from:p.periodStart,to:p.periodEnd<cutoff?p.periodEnd:cutoff});
+  const entered=sales.some(s=>s.type===type&&s.saleDate>=p.periodStart&&s.saleDate<=p.periodEnd&&s.saleDate<=cutoff);
+  const reconciled=!!report&&entered&&!detail.partial&&number(report.values?.units)===detail.values.units;
+  const useDetailed=report?.salesSource==='dossiers'||entered&&(!report||reconciled);
+  const manual=summarizeReports(report?[report]:[],'vente',type).values;
+  const values=useDetailed?{...manual,...detail.values}:{...manual,vehicleKnown:manual.vehicleProfit!==null?number(manual.units):0,financeKnown:manual.financeProfit!==null?number(manual.units):0};
+  return {...p,values,useDetailed,report,partial:useDetailed&&detail.partial,historicalPartial:!!report&&entered&&!useDetailed};
+ });
+ const knownSum=key=>{const ns=periods.map(p=>number(p.values[key])).filter(n=>n!==null);return ns.length?ns.reduce((a,b)=>a+b,0):null;};
+ const values=Object.fromEntries(['units','vehicleProfit','financeProfit','vehicleKnown','financeKnown'].map(k=>[k,knownSum(k)]));
+ values.vehicleAverage=values.vehicleKnown>0?values.vehicleProfit/values.vehicleKnown:null;
+ values.financeAverage=values.financeKnown>0?values.financeProfit/values.financeKnown:null;
+ values.totalProfit=values.vehicleProfit===null&&values.financeProfit===null?null:(values.vehicleProfit||0)+(values.financeProfit||0);
+ return {values,periods,partial:periods.some(p=>p.partial),historicalPartial:periods.some(p=>p.historicalPartial),usesHistory:periods.some(p=>p.report&&!p.useDetailed)};
 }
 export const wholesaleProfit=x=>(cents(x.price)-cents(x.cost)-cents(x.fees))/100;
 export function antiqueErrors(x){

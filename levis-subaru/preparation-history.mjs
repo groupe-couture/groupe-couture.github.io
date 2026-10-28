@@ -1,4 +1,4 @@
-import {STEPS,today} from './domain.mjs?v=1.14';
+import {STEPS,today} from './domain.mjs?v=1.14.1';
 const done=s=>['Terminé','Non requis'].includes(s?.status);
 export const validDay=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'')&&Number.isFinite(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
 export function dayDistance(a,b){return validDay(a)&&validDay(b)?Math.round((Date.parse(b+'T12:00:00Z')-Date.parse(a+'T12:00:00Z'))/86400000):null;}
