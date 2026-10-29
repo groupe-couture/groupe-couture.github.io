@@ -1,4 +1,4 @@
-import {dayDistance,validDay} from './preparation-history.mjs?v=1.15.0';
+import {dayDistance,validDay} from './preparation-history.mjs?v=1.16.0';
 export const DEPT_FIELDS={
  vente:[['units','Ventes signées','unit'],['vehicleAverage','Profit véhicule moyen ($)','money'],['financeAverage','F&I moyen par véhicule vendu ($)','money'],['inventory','Inventaire','stock'],['walk','Clients walk-in','count'],['leads','Leads Web','count'],['phone','Clients téléphone','count']],
  service:[['hours','Heures vendues','hours'],['revenue','Chiffre d’affaires MO ($)','money'],['profit','Profit brut MO ($)','money'],['ros','Bons de réparation fermés','count'],['presence','Heures de présence des techniciens','hours'],['clocked','Heures pointées sur les travaux','hours']],

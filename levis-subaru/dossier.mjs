@@ -1,7 +1,7 @@
-import {defaultSteps,complete,today} from './domain.mjs?v=1.15.0';
-import {saleErrors} from './reporting.mjs?v=1.15.0';
-import {stampPreparation} from './preparation-history.mjs?v=1.15.0';
-import {newId} from './invitations.mjs?v=1.15.0';
+import {defaultSteps,complete,today} from './domain.mjs?v=1.16.0';
+import {saleErrors} from './reporting.mjs?v=1.16.0';
+import {stampPreparation} from './preparation-history.mjs?v=1.16.0';
+import {newId} from './invitations.mjs?v=1.16.0';
 
 export const stockKey=v=>String(v||'').trim().toUpperCase();
 export function linkedVehicle(s,vehicles){

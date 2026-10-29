@@ -1,23 +1,24 @@
-import {esc,today,complete} from './domain.mjs?v=1.15.0';
-import {canEditObjectives,isMember} from './permissions.mjs?v=1.15.0';
-import {newId} from './invitations.mjs?v=1.15.0';
-import {INSPECTION_POINTS,INSPECTION_STATES,inspectionErrors,workErrors,money,productLines,bonusTotal,salesMetrics,addWholesaleMetrics,wholesaleErrors,wholesaleProfit,antiqueErrors} from './operations.mjs?v=1.15.0';
+import {createPurchaseTools} from './purchases-ui.mjs?v=1.16.0';
+import {esc,today,complete} from './domain.mjs?v=1.16.0';
+import {canEditObjectives,isMember} from './permissions.mjs?v=1.16.0';
+import {newId} from './invitations.mjs?v=1.16.0';
+import {INSPECTION_POINTS,INSPECTION_STATES,inspectionErrors,workErrors,money,productLines,bonusTotal,salesMetrics,addWholesaleMetrics,wholesaleErrors,wholesaleProfit,antiqueErrors} from './operations.mjs?v=1.16.0';
 
 const currency=v=>v===null||v===undefined?'—':new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD'}).format(v);
 const opt=(list,value)=>list.map(s=>`<option ${s===value?'selected':''}>${esc(s)}</option>`).join('');
 const input=(name,label,value='',type='text',extra='')=>`<label>${label}<input name="${name}" type="${type}" value="${esc(value??'')}" ${extra}></label>`;
 export function createOperations(ctx){
  const $=s=>document.querySelector(s),C=()=>ctx.state(),can=()=>canEditObjectives(C().profile,'vente');
- let connected='',unsubs=[],products=[],wholesale=[],antiques=[],inspections=[],section='wholesale',dialog=null,loading=true,loadError='',dirty=false;
- function stop(){unsubs.forEach(f=>f());unsubs=[];connected='';products=[];wholesale=[];antiques=[];inspections=[];dialog?.close();}
- const persist=()=>{if(C().demo)localStorage.setItem('levis-operations-v114',JSON.stringify({products,wholesale,antiques,inspections}));};
+ let connected='',unsubs=[],products=[],wholesale=[],antiques=[],inspections=[],purchases=[],leaseBuyouts=[],section='wholesale',dialog=null,loading=true,loadError='',dirty=false;
+ function stop(){unsubs.forEach(f=>f());unsubs=[];connected='';products=[];wholesale=[];antiques=[];inspections=[];purchases=[];leaseBuyouts=[];dialog?.close();}
+ const persist=()=>{if(C().demo)localStorage.setItem('levis-operations-v114',JSON.stringify({products,wholesale,antiques,inspections,purchases,leaseBuyouts}));};
  function connect(){
   const c=C(),key=c.user?.uid+'_'+c.profile?.role+'_'+c.profile?.department;if(!isMember(c.profile)||key===connected)return;
   stop();connected=key;loading=true;loadError='';let pending=0;
-  if(c.demo){try{const x=JSON.parse(localStorage.getItem('levis-operations-v114')||'{}');products=x.products||[];wholesale=x.wholesale||[];antiques=x.antiques||[];inspections=x.inspections||[];}catch{}loading=false;return;}
+  if(c.demo){try{const x=JSON.parse(localStorage.getItem('levis-operations-v114')||'{}');products=x.products||[];wholesale=x.wholesale||[];antiques=x.antiques||[];inspections=x.inspections||[];purchases=x.purchases||[];leaseBuyouts=x.leaseBuyouts||[];}catch{}loading=false;return;}
   const watch=(collection,assign)=>{pending++;let first=true;unsubs.push(c.sdk.onSnapshot(c.sdk.collection(c.db,collection),s=>{assign(s.docs.map(d=>({...d.data(),id:d.id})));if(first){first=false;pending--;}loading=pending>0;if(!dirty&&!dialog?.open)ctx.render();},e=>{loadError=e.message;loading=false;ctx.fail(e);}));};
   watch('inspections',x=>inspections=x);
-  if(can()){watch('fiProducts',x=>products=x);watch('wholesale',x=>wholesale=x);watch('antiqueEvaluations',x=>antiques=x);}
+  if(can()){watch('fiProducts',x=>products=x);watch('wholesale',x=>wholesale=x);watch('antiqueEvaluations',x=>antiques=x);watch('vehiclePurchases',x=>purchases=x);watch('leaseBuyouts',x=>leaseBuyouts=x);}
  }
  function modal(title,body,saveLabel='Enregistrer'){
   if(!dialog){dialog=document.createElement('dialog');dialog.className='ops-dialog';document.body.append(dialog);dialog.addEventListener('close',()=>{dirty=false;ctx.render();});}
@@ -27,7 +28,7 @@ export function createOperations(ctx){
  function bindSave(f,handler){f.onsubmit=async e=>{e.preventDefault();$('#opsSave').disabled=true;$('#opsError').textContent='';try{await handler();dirty=false;dialog.close();ctx.toast('Enregistré');}catch(e){$('#opsError').textContent=e.message;}finally{if($('#opsSave'))$('#opsSave').disabled=false;}};}
  async function put(collection,id,data,old){
   const c=C(),payload={...data,updatedAt:new Date().toISOString(),updatedBy:c.user.uid,version:(old?.version||0)+1};delete payload.id;
-  if(c.demo){const rows={fiProducts:products,wholesale,antiqueEvaluations:antiques,inspections}[collection],next=rows.filter(x=>x.id!==id).concat({...payload,id});if(collection==='fiProducts')products=next;if(collection==='wholesale')wholesale=next;if(collection==='antiqueEvaluations')antiques=next;if(collection==='inspections')inspections=next;persist();return;}
+  if(c.demo){const rows={fiProducts:products,wholesale,antiqueEvaluations:antiques,inspections,vehiclePurchases:purchases,leaseBuyouts}[collection],next=rows.filter(x=>x.id!==id).concat({...payload,id});if(collection==='fiProducts')products=next;if(collection==='wholesale')wholesale=next;if(collection==='antiqueEvaluations')antiques=next;if(collection==='inspections')inspections=next;if(collection==='vehiclePurchases')purchases=next;if(collection==='leaseBuyouts')leaseBuyouts=next;persist();return;}
   await c.sdk.runTransaction(c.db,async tx=>{const r=c.sdk.doc(c.db,collection,id),s=await tx.get(r);if((s.data()?.version||0)!==(old?.version||0))throw Error('Ce document a été modifié. Fermez-le et rouvrez-le.');tx.set(r,payload);});
  }
  function print(title,html){
@@ -69,10 +70,11 @@ export function createOperations(ctx){
   connect();if(C().tab!=='operations')return false;
   $('#pageTitle').textContent='Outils de gestion';$('#subtitle').textContent='Données du dossier commun · accès selon votre département';$('#add').hidden=true;$('#metrics').innerHTML='';
   if(!can()){$('#toolbar').innerHTML='';$('#content').innerHTML='<p>Les outils financiers sont réservés à la direction des ventes et aux administrateurs. Les inspections et travaux sont accessibles depuis les dossiers véhicules.</p>';return true;}
-  const tabs=[['wholesale','Wholesale'],['antique','Évaluation antique']];
+  const tabs=[['wholesale','Wholesale'],['antique','Évaluation antique'],['companyPurchase','Achat véhicule entreprise'],['vehiclePurchase','Achat véhicule'],['leaseBuyout','Rachat de location']];
   $('#toolbar').innerHTML=tabs.map(([id,l])=>`<button data-ops-view="${id}" class="${section===id?'primary':''}">${l}</button>`).join('')+`<label>Mois<input id="opsMonth" type="month" value="${C().month}"></label>`;
   document.querySelectorAll('[data-ops-view]').forEach(b=>b.onclick=()=>{section=b.dataset.opsView;ctx.render();});$('#opsMonth').onchange=e=>{if(e.target.value){ctx.setMonth(e.target.value);ctx.render();}};
   if(loading||loadError){$('#content').innerHTML='<p>'+esc(loadError||'Chargement des outils…')+'</p>';return true;}
+  if(purchaseTools.render(section))return true;
   if(section==='wholesale'){
    const rows=wholesale.filter(w=>w.date?.startsWith(C().month)),active=rows.filter(w=>w.status!=='Annulée');
    $('#content').innerHTML=`<button id="newWholesale" class="primary">+ Ajouter une vente wholesale</button><p>${active.length} vente(s) · Profit ${currency(active.reduce((n,w)=>n+wholesaleProfit(w),0))}</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Stock / véhicule</th><th>Acheteur</th><th>Profit</th><th>État</th><th></th></tr></thead><tbody>${rows.map(w=>`<tr><td>${esc(w.date)}</td><td>${esc(w.stock)} · ${esc(w.model)}</td><td>${esc(w.buyer)}</td><td>${currency(wholesaleProfit(w))}</td><td>${esc(w.status)}</td><td><button data-wholesale="${esc(w.id)}">Ouvrir</button></td></tr>`).join('')}</tbody></table></div>`;
@@ -88,8 +90,8 @@ export function createOperations(ctx){
   if(view==='products')productsPanel();else profits();
  }
  function productsPanel(){
-   $('#content').innerHTML=`<button id="newProduct" class="primary">+ Ajouter un produit</button><p>Configurez les produits et les bonis de Lévis Subaru.</p><div class="table-wrap"><table><thead><tr><th>Produit</th><th>Boni / unité</th><th>Disponible</th><th></th></tr></thead><tbody>${products.map(p=>`<tr><td>${esc(p.name)}</td><td>${currency(p.bonus)}</td><td>${p.active?'Oui':'Non'}</td><td><button data-product="${esc(p.id)}">Modifier</button></td></tr>`).join('')}</tbody></table></div>`;
-   $('#newProduct').onclick=()=>product();document.querySelectorAll('[data-product]').forEach(b=>b.onclick=()=>product(b.dataset.product));
+   $('#content').innerHTML=`<button id="newProduct" class="primary">+ Ajouter un produit</button><p>Configurez les produits et les bonis de Lévis Subaru.</p><div class="table-wrap"><table><thead><tr><th>Produit</th><th>Boni / unité</th><th>Disponible</th><th></th></tr></thead><tbody>${products.filter(p=>!p.deleted).map(p=>`<tr><td>${esc(p.name)}</td><td>${currency(p.bonus)}</td><td>${p.active?'Oui':'Non'}</td><td><button data-product="${esc(p.id)}">Modifier</button> <button data-delete-product="${esc(p.id)}">Supprimer</button></td></tr>`).join('')}</tbody></table></div>`;
+   $('#newProduct').onclick=()=>product();document.querySelectorAll('[data-product]').forEach(b=>b.onclick=()=>product(b.dataset.product));document.querySelectorAll('[data-delete-product]').forEach(b=>b.onclick=async()=>{const old=products.find(p=>p.id===b.dataset.deleteProduct);if(!old||!confirm('Supprimer '+old.name+' du catalogue ? Les ventes déjà enregistrées conserveront ce produit et leur barème.'))return;b.disabled=true;try{await put('fiProducts',old.id,{...old,active:false,deleted:true,deletedAt:new Date().toISOString(),deletedBy:C().user.uid},old);ctx.render();ctx.toast('Produit supprimé du catalogue');}catch(e){ctx.fail(e);}finally{b.disabled=false;}});
 
  }
  function profits(){
@@ -99,5 +101,6 @@ export function createOperations(ctx){
   $('#content').innerHTML=table('VN')+table('VO')+`<h2>Résultats au détail par conseiller</h2><div class="table-wrap"><table><thead><tr><th>Conseiller</th><th>Ventes</th><th>Profit véhicule</th><th>F&I</th><th>Moyenne véhicule</th><th>Moyenne F&I</th><th>Bonis prévus</th></tr></thead><tbody>${sellers.map(id=>{const own=rows.filter(s=>s.sellerId===id),vs=own.map(s=>finances.find(f=>f.id===s.id)),known=k=>vs.map(f=>money(f?.[k])).filter(n=>n!==null),sum=k=>known(k).length?known(k).reduce((a,b)=>a+b,0):null;return `<tr><td>${esc(own[0].sellerName)}</td><td>${own.length}</td><td>${currency(sum('vehicleProfit'))}</td><td>${currency(sum('financeProfit'))}</td><td>${currency(known('vehicleProfit').length?sum('vehicleProfit')/known('vehicleProfit').length:null)}</td><td>${currency(known('financeProfit').length?sum('financeProfit')/known('financeProfit').length:null)}</td><td>${currency(vs.reduce((n,f)=>n+bonusTotal(f?.products),0))}</td></tr>`;}).join('')}</tbody></table></div><p class="muted">Les moyennes utilisent uniquement les montants renseignés. Les bonis sont prévus selon les produits enregistrés, à valider par la direction.</p><h2>Ventes du mois</h2><div class="table-wrap"><table><thead><tr><th>Stock</th><th>Conseiller</th><th>Véhicule</th><th>Profit</th><th>F&I</th><th>Produits</th><th></th></tr></thead><tbody>${rows.map(s=>{const f=finances.find(f=>f.id===s.id)||{};return `<tr><td>${esc(s.stock)}</td><td>${esc(s.sellerName)}</td><td>${esc(s.model)}</td><td>${currency(f.vehicleProfit)}</td><td>${currency(f.financeProfit)}</td><td>${esc((f.products||[]).map(p=>p.name).join(', '))}</td><td><button data-open-sale="${esc(s.id)}">Ouvrir</button></td></tr>`;}).join('')}</tbody></table></div>`;
   document.querySelectorAll('[data-open-sale]').forEach(b=>b.onclick=()=>ctx.openSale(b.dataset.openSale));
  }
- return {connect,render,stop,renderSalesTools,getWholesale:()=>wholesale,status:()=>({loading,error:loadError}),hold:()=>!!dialog?.open,inspection,works,getProducts:()=>products,selectedProducts:(ids,previous)=>productLines(products,ids,previous)};
+ const purchaseTools=createPurchaseTools({state:C,rows:()=>({purchases,leaseBuyouts}),products:()=>products.filter(p=>!p.deleted&&p.active!==false),modal,bindSave,put,print});
+ return {connect,render,stop,renderSalesTools,getWholesale:()=>wholesale,status:()=>({loading,error:loadError}),hold:()=>!!dialog?.open,inspection,works,getProducts:()=>products.filter(p=>!p.deleted),selectedProducts:(ids,previous)=>productLines(products,ids,previous)};
 }

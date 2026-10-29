@@ -16,5 +16,10 @@ export function deliveryReady(v){return ['Prête','Livré'].includes(v.delivery?
 export function urgentDelivery(v,now=Date.now()){
  if(v.archived||!v.delivery||['Livré','Annulée'].includes(v.delivery.status)||deliveryReady(v))return false;
  const due=deliveryTimestamp(v.delivery);
- return Number.isFinite(due)&&due-Number(now)<=5*60*60*1000;
+ return Number.isFinite(due)&&due-Number(now)<=8*60*60*1000;
+}
+export function reminderDelivery(v,now=Date.now()){
+ if(v.archived||!v.delivery||['Livré','Annulée'].includes(v.delivery.status)||deliveryReady(v))return false;
+ const due=deliveryTimestamp(v.delivery),remaining=due-Number(now);
+ return Number.isFinite(due)&&remaining>8*60*60*1000&&remaining<=24*60*60*1000;
 }

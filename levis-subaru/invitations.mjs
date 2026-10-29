@@ -1,4 +1,4 @@
-import {DEPARTMENTS} from './employees.mjs?v=1.15.0';
+import {DEPARTMENTS} from './employees.mjs?v=1.16.0';
 export const ROLES={employe:'Employé',directeur:'Directeur de département',admin:'Administrateur'};
 export const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
 export const validEmail=s=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s||'');

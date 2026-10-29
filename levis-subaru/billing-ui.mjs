@@ -1,7 +1,7 @@
-import {esc,today} from './domain.mjs?v=1.15.0';
-import {canEditObjectives} from './permissions.mjs?v=1.15.0';
-import {newId} from './invitations.mjs?v=1.15.0';
-import {BILLING_CATEGORIES,TAX_MODES,INVOICE_SETUP,billingTotals,lineAmounts,draftErrors,draftFromDossier} from './billing.mjs?v=1.15.0';
+import {esc,today} from './domain.mjs?v=1.16.0';
+import {canEditObjectives} from './permissions.mjs?v=1.16.0';
+import {newId} from './invitations.mjs?v=1.16.0';
+import {BILLING_CATEGORIES,TAX_MODES,INVOICE_SETUP,billingTotals,lineAmounts,draftErrors,draftFromDossier} from './billing.mjs?v=1.16.0';
 const currency=v=>new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD'}).format(v);
 const input=(name,label,value='',extra='')=>`<label>${label}<input name="${name}" value="${esc(value??'')}" ${extra}></label>`;
 const emptyLine=()=>({category:'Produit',sku:'',description:'',quantity:1,unitPrice:'',discount:0,taxMode:'qc'});
