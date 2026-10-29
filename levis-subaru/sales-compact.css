@@ -6,3 +6,11 @@
 @media(min-width:901px) and (max-height:650px){#app.sales-screen main{padding:.5rem .7rem;gap:.3rem}#app.sales-screen header .eyebrow,#app.sales-screen header p{display:none}#app.sales-screen .ls-seller-name{font-size:.7rem}#app.sales-screen .ls-score{font-size:1.2rem}#app.sales-screen footer{display:none}}
 @media(min-width:901px){#app.sales-screen .ls-seller-row{align-items:stretch}#app.sales-screen .ls-deals,#app.sales-screen .ls-seller{height:100%;max-height:100%}}
 @media(min-width:901px){#app.sales-screen aside{padding:1.2rem 1rem;gap:.5rem}#app.sales-screen aside .brand{font-size:1.5rem}#app.sales-screen aside nav{margin-top:.5rem}#app.sales-screen aside nav>button{padding:.55rem .6rem;margin-bottom:.2rem}#app.sales-screen aside nav>button span{font-size:.9rem}#app.sales-screen .side-subnav button{padding:.4rem .6rem;font-size:.75rem}#app.sales-screen .aside-bottom{gap:.4rem;font-size:.72rem}}
+/* Keep names, scores and annual totals inside their cards when text wraps. */
+#app.sales-screen .ls-sales-grid{grid-template-rows:repeat(var(--seller-count),minmax(min-content,1fr));overflow-y:auto;overflow-x:hidden}
+#app.sales-screen .ls-seller-row{min-height:min-content;overflow:visible}
+#app.sales-screen .ls-seller{height:auto;max-height:none;min-height:min-content;justify-content:center;gap:.2rem}
+#app.sales-screen .ls-seller>*{flex-shrink:0;min-width:0}
+#app.sales-screen .ls-seller-name{margin:0;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
+#app.sales-screen .ls-score{overflow-wrap:anywhere}
+#app.sales-screen .ls-cumul{white-space:normal;overflow-wrap:anywhere}
