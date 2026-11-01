@@ -1,6 +1,7 @@
-import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.1';
-import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs?v=1.18.1';
-import {completionCounts,inGroupSubmissions,joinedMonths,groupEntryLabel} from './group-membership.mjs?v=1.18.1';
+import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.2';
+import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs?v=1.18.2';
+import {completionCounts,inGroupSubmissions,joinedMonths,groupEntryLabel} from './group-membership.mjs?v=1.18.2';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.18.2';
 export const REPORT_DEPARTMENTS={
  vn:{label:'Véhicules neufs',section:'vente:VN',columns:[['units','Ventes neuf','count',50],['vehicleAverage','Moy. profit véhicule','money',92],['financeAverage','Moy. profit F&I','money',89],['inventory','Inventaire','count',65],['coverage','Mois d’inventaire','ratio',84]]},
  vo:{label:'Véhicules d’occasion',section:'vente:VO',columns:[['units','Ventes détail','count',55],['wholesaleUnits','Wholesale','count',55],['vehicleAverage','Moy. profit véhicule','money',90],['financeAverage','Moy. profit F&I','money',85],['inventory','Inventaire','count',62],['coverage','Mois d’inventaire','ratio',80]]},
@@ -34,9 +35,10 @@ export function departmentDashboardRows(dealers,data,{kind='weekly',year=2026,mo
  const selected=String(year)+'-'+String(month).padStart(2,'0'),base=dashboardRows(dealers,data,{kind,year,month});
  const monthly=latestOfficialSubmissions(data.submissions,{kind:'monthly_final'});
  const current=latestOfficialSubmissions(data.submissions,{kind:kind==='ytd'?'monthly_final':kind}).filter(s=>kind==='ytd'?s.snapshot.endDate.slice(0,7)<=selected&&s.snapshot.endDate.slice(0,4)===String(year):s.snapshot.endDate.slice(0,7)===selected);
- const annual=kind==='ytd'?officialYearToDate(data.submissions,year,{throughMonth:month,joinedMonths:joinedMonths(dealers)}):[];
+ const aad=base[0]?.aad,throughMonth=aad?.throughMonth?Number(aad.throughMonth.slice(5)):null;
+ const annual=kind==='ytd'&&throughMonth?officialYearToDate(data.submissions,year,{throughMonth,joinedMonths:joinedMonths(dealers)}):[];
  return base.map(row=>{
-  const own=current.filter(s=>s.dealership_id===row.id&&(kind==='ytd'||!row.periodEnd||s.snapshot.endDate===row.periodEnd)),departments={};
+  const own=current.filter(s=>s.dealership_id===row.id&&(kind==='ytd'?!!aad.throughMonth&&s.snapshot.endDate.slice(0,7)<=aad.throughMonth:!row.periodEnd||s.snapshot.endDate===row.periodEnd)),departments={};
   for(const [id,def]of Object.entries(REPORT_DEPARTMENTS)){
    const snapshot=own.filter(s=>Object.hasOwn(s.snapshot.sections||{},def.section)).at(-1)?.snapshot;
    const annualGroup=kind==='ytd'?annual.find(g=>g.dealershipId===row.id&&g.section===def.section):null;
@@ -46,7 +48,7 @@ export function departmentDashboardRows(dealers,data,{kind='weekly',year=2026,mo
     const reference=stockMonth?monthly.find(s=>s.dealership_id===row.id&&s.snapshot.endDate.slice(0,7)===previousMonth(stockMonth))?.snapshot.sections?.[def.section]?.data?.values??null:null;
     departments[id]=salesDepartment(values,{stock,stockMonth,reference},id==='vo');
    }else departments[id]=fixedDepartment(values,id);
-   departments[id].outsideGroup=row.outsideGroup;departments[id].missingMonths=annualGroup?.missingMonths||[];
+   departments[id].includedMonths=annualGroup?.months||[];departments[id].outsideGroup=row.outsideGroup;departments[id].missingMonths=annualGroup?.missingMonths||[];
    departments[id].missingFields=values?SECTIONS[def.section].fields.filter(key=>!finite(values[key])):[];
    departments[id].partial=departments[id].hasOfficial&&(annualGroup?.partial===true||departments[id].missingFields.length>0);
   }
@@ -76,11 +78,11 @@ export function formatReportValue(value,format){
  if(!finite(value))return '—';
  return (FORMATTERS[format]||FORMATTERS.decimal).format(value)+(format==='percent'?' %':'');
 }
-export function reportStateLabel(row,id){const part=row.departments[id];if(part.outsideGroup)return 'Complété — hors groupe';if(row.historical)return !part.hasOfficial?'Aucun résultat fourni':part.partial?'Import partiel':part.sourceConfirmed?'Balance déclarée au fichier':'Importé · à confirmer';return part.hasOfficial?(part.partial?'Cumul / données partiels':row.correcting?'Soumis / correction':'Soumis au groupe'):STATUS_LABELS[row.status]||'À recevoir';}
+export function reportStateLabel(row,id){const part=row.departments[id];if(part.outsideGroup)return 'Complété — hors groupe';if(row.aad&&part.hasOfficial)return part.partial?'AAD partiel':row.historical&&!part.sourceConfirmed?'AAD · à confirmer':'AAD disponible';if(row.historical)return !part.hasOfficial?'Aucun résultat fourni':part.partial?'Import partiel':part.sourceConfirmed?'Balance déclarée au fichier':'Importé · à confirmer';return part.hasOfficial?(part.partial?'Cumul / données partiels':row.correcting?'Soumis / correction':'Soumis au groupe'):STATUS_LABELS[row.status]||'À recevoir';}
 export function dashboardCsv(rows,{department,month,kind,periodEnd=null,simulated=true,historical=false,definitions=REPORT_DEPARTMENTS}){
  if(!Object.hasOwn(REPORT_DEPARTMENTS,department)||!Object.hasOwn(REPORT_LABELS,kind)||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Paramètres CSV invalides.');
  const quote=value=>'"'+String(/^[=+\-@\t\r]/.test(String(value??''))?"'"+value:value??'').replaceAll('"','""')+'"',def=definitions[department];
- const data=[[historical?'HISTORIQUE GOOGLE SHEETS — À CONFIRMER':simulated?'DONNÉES SIMULÉES':'RAPPORTS SOUMIS AU GROUPE',def.label,REPORT_LABELS[kind],month,periodEnd||''],...(historical?[['Moyennes déclarées au détail; groupe et cumul pondérés à partir de moyennes arrondies. Wholesale séparé.'],['Inventaire : photo datée; ventes de référence du mois précédent. Aucune validation DG automatique.']]:[]),['Concession',...def.columns.map(([,label])=>label),'Rapport','Photo inventaire','Référence ventes','Balance référence','Intégration au groupe'],...sortGroupRows(rows).map(row=>{const p=row.departments[department];return [row.name,...def.columns.map(([key,,type])=>formatReportValue(p[key],type)),reportStateLabel(row,department),p.stockAsOf||p.stockMonth||'',p.referenceMonth||'',historical&&p.referenceMonth?(p.referenceConfirmed?'Déclarée':'À confirmer'):'',groupEntryLabel(row)];})];
+ const data=[[historical?'HISTORIQUE GOOGLE SHEETS — À CONFIRMER':simulated?'DONNÉES SIMULÉES':'RAPPORTS SOUMIS AU GROUPE',def.label,REPORT_LABELS[kind],month,periodEnd||''],...(kind==='ytd'?[[aadPeriodLabel(rows[0]?.aad),aadPeriodNote(rows[0]?.aad)]]:[]),...(historical?[['Moyennes déclarées au détail; groupe et cumul pondérés à partir de moyennes arrondies. Wholesale séparé.'],['Inventaire : photo datée; ventes de référence du mois précédent. Aucune validation DG automatique.']]:[]),['Concession',...def.columns.map(([,label])=>label),'Rapport','Photo inventaire','Référence ventes','Balance référence','Intégration au groupe','Mois inclus dans l’AAD'],...sortGroupRows(rows).map(row=>{const p=row.departments[department];return [row.name,...def.columns.map(([key,,type])=>formatReportValue(p[key],type)),reportStateLabel(row,department),p.stockAsOf||p.stockMonth||'',p.referenceMonth||'',historical&&p.referenceMonth?(p.referenceConfirmed?'Déclarée':'À confirmer'):'',groupEntryLabel(row),(p.includedMonths||[]).join(', ')];})];
  return '\ufeff'+data.map(r=>r.map(quote).join(';')).join('\r\n');
 }
 export function departmentNotes(id){

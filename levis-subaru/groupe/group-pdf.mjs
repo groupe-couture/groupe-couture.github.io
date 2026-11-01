@@ -1,9 +1,10 @@
-import {groupEntryLabel} from './group-membership.mjs?v=1.18.1';
-import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.18.1';
-import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.1';
-import {reportingPeriod} from './reporting.mjs?v=1.18.1';
-import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.18.1';
-import {HISTORY_DEPARTMENTS,historyTotals,historyNotes} from './history-model.mjs?v=1.18.1';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.18.2';
+import {groupEntryLabel} from './group-membership.mjs?v=1.18.2';
+import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.18.2';
+import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.2';
+import {reportingPeriod} from './reporting.mjs?v=1.18.2';
+import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.18.2';
+import {HISTORY_DEPARTMENTS,historyTotals,historyNotes} from './history-model.mjs?v=1.18.2';
 const WINANSI={8364:128,8218:130,402:131,8222:132,8230:133,8224:134,8225:135,710:136,8240:137,352:138,8249:139,338:140,381:142,8216:145,8217:146,8220:147,8221:148,8226:149,8211:150,8212:151,732:152,8482:153,353:154,8250:155,339:156,382:158,376:159};
 const normalize=value=>String(value??'').replace(/[\u00a0\u202f\t]/g,' ').replace(/[\r\n]+/g,' ').replace(/→/g,' > ').replace(/✓/g,'OK');
 const code=char=>char.charCodeAt(0)<256?char.charCodeAt(0):WINANSI[char.charCodeAt(0)]??63;
@@ -33,7 +34,8 @@ const monthLabel=month=>new Date(month+'-15T12:00:00Z').toLocaleDateString('fr-C
 function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulated,historical,generatedAt,part,totalParts,pageNumber,totalPages}){
  const def=(historical?HISTORY_DEPARTMENTS:REPORT_DEPARTMENTS)[id],page=createPage(),W=841.89,H=595.28,M=28,inner=W-2*M;
  page.rect(0,H-69,W,69,NAVY);page.text('GROUPE COUTURE / SOMMAIRE DES DÉPARTEMENTS',M,H-23,{size:9.2,bold:true,color:[.74,.83,.89]});
- page.text(def.label,M,H-52,{size:23,bold:true,color:[1,1,1]});page.text(REPORT_LABELS[kind]+' · '+monthLabel(month),W-M,H-37,{size:10,right:true,color:[1,1,1]});
+ page.text(def.label,M,H-52,{size:23,bold:true,color:[1,1,1]});page.text(kind==='ytd'?aadPeriodLabel(allRows[0]?.aad):REPORT_LABELS[kind]+' · '+monthLabel(month),W-M,H-37,{size:10,right:true,color:[1,1,1]});
+ if(kind==='ytd')page.text('Mois sélectionné : '+monthLabel(month),W-M,H-54,{size:8.5,right:true,color:[1,1,1]});
  if(['weekly','month_to_date'].includes(kind)&&periodEnd)page.text((historical?'Situation au ':'Semaine au ')+periodEnd,W-M,H-54,{size:8.5,right:true,color:[1,1,1]});
  page.rect(M,H-101,inner,21,[1,.956,.85]);page.text(historical?'HISTORIQUE GOOGLE SHEETS - Import en lecture seule. Balance déclarée au fichier, sans validation DG automatique.':simulated?'DONNÉES SIMULÉES - Aperçu de préparation. Aucun résultat réel raccordé.':'RAPPORTS SOUMIS AU GROUPE - Versions officielles conservées sur le serveur.',M+9,H-94,{size:8,bold:true,color:[.48,.34,.10]});
  const scopeLabel={all:'Toutes les concessions',received:historical?'Résultats importés':'Rapports soumis',pending:historical?'Résultats absents':'À recevoir'}[scope]||'Toutes les concessions';
@@ -66,7 +68,7 @@ function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulate
  page.rect(M,y-23,inner,23,[.884,.938,.944]);
  for(const col of columns){const value=col.key==='name'?(historical?'Groupe importé':'Groupe soumis'):col.key==='status'?totals.completed+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
  let noteY=y-36;
- for(const note of (historical?historyNotes:departmentNotes)(id))for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
+ for(const note of [...(historical?historyNotes:departmentNotes)(id),...(kind==='ytd'?[aadPeriodNote(allRows[0]?.aad)]:[])])for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
  page.line(M,30,W-M,30);const stamp=new Date(generatedAt).toLocaleString('fr-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
  page.text('Émis le '+stamp+' · Moyennes pondérées · Montants en dollars canadiens',M,17,{size:7,color:MUTED});page.text('Page '+pageNumber+' / '+totalPages,W-M,17,{size:7,right:true,color:MUTED});
  return page.commands.join('\n');
