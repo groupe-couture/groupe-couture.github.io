@@ -10,3 +10,7 @@
 @media(max-width:680px){.controls{align-items:stretch}.controls label{flex:1;min-width:140px}.controls input,.controls select{width:100%;min-width:0}.department-tabs{overflow-x:auto;justify-content:flex-start}.department-tabs button{white-space:nowrap}.panel-head{gap:12px;flex-wrap:wrap}}
 
 .group-login{min-height:100vh;display:grid;place-items:center;padding:24px}.group-login>div{max-width:520px;width:100%;background:white;border:1px solid #dbe3e9;border-radius:14px;padding:28px}.group-login form{display:grid;gap:16px}.group-login label{display:grid;gap:6px}.group-login input{padding:12px;border:1px solid #c4d1d9;border-radius:7px}.group-login a{color:#087e78;display:block;margin-top:12px}#groupError{color:#a32929;line-height:1.5}#groupShell{display:contents}
+
+.controls{flex-wrap:wrap}.controls>label:first-child{flex:1 1 280px}.controls>label:first-child select{max-width:100%}.department-tabs{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}#concessionReturn{display:inline-block;font-size:12px;color:var(--teal);margin-top:8px}#detailContent dl dt{overflow-wrap:anywhere}
+
+.pdf-bottom{flex-wrap:wrap}#pdfView{text-decoration:none;text-align:center}

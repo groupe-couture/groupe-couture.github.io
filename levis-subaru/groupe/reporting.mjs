@@ -1,4 +1,4 @@
-import {periodsForMonth} from '../reporting.mjs';
+import {periodsForMonth} from '../reporting.mjs?v=1.18.0';
 export const reportingWeeks=periodsForMonth;
 export function reportDataForSelection(data,{kind,periodEnd}){
  if(kind!=='weekly')return data;
@@ -67,7 +67,14 @@ export function createCentralReporting(supabase){
   progress:()=>readAll(()=>supabase.from('gc_department_reports').select('period_id,section,ready').order('period_id').order('section')),
   myMemberships:()=>read(supabase.from('gc_memberships').select('*')),
   myGroupAccess:()=>read(supabase.from('gc_group_readers').select('user_id,active')),
-  dealerships:()=>read(supabase.from('gc_dealerships').select('id,name,required_sections,reporting_enabled').order('name')),
+  dealerships:()=>read(supabase.from('gc_dealerships').select('id,name,required_sections,reporting_enabled,historical_only').order('name')),
+  history:async(dealershipId)=>{
+   const batches=await read(supabase.from('gc_history_imports').select('id,source_url,source_modified_at,summary,completed_at').eq('status','completed').order('completed_at',{ascending:false}).limit(1));
+   const batch=batches[0];if(!batch)return {batch:null,records:[]};
+   const records=await readAll(()=>{let q=supabase.from('gc_history_records').select('dealership_id,section,kind,as_of,source_sheet_id,source_row,values:data->values,hasActual:data->hasActual,source').eq('import_id',batch.id).order('source_sheet_id').order('source_row').order('section');if(dealershipId)q=q.eq('dealership_id',dealershipId);return q;});
+   return {batch,records:records.map(({values,hasActual,...r})=>({...r,data:{values,hasActual}}))};
+  },
+  historyFields:(importId,sheetId,row)=>read(supabase.from('gc_history_records').select('section,fields:data->fields').eq('import_id',importId).eq('source_sheet_id',sheetId).eq('source_row',row)),
   periods:dealershipId=>{
    return readAll(()=>{
     let q=supabase.from('gc_report_periods').select('*').order('end_date',{ascending:false}).order('id');

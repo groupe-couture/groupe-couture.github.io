@@ -1,6 +1,6 @@
-import {latestOfficialSubmissions,officialYearToDate,reportingWeeks} from './reporting.mjs';
+import {latestOfficialSubmissions,officialYearToDate,reportingWeeks} from './reporting.mjs?v=1.18.0';
 
-export const REPORT_LABELS={weekly:'Hebdomadaire',monthly_final:'Mois final',ytd:'Cumul annuel'};
+export const REPORT_LABELS={weekly:'Hebdomadaire',monthly_final:'Mois final',ytd:'Cumul annuel',month_to_date:'Mois à date'};
 export const STATES={draft:'En préparation',validated:'Validé par le DG',submitted:'Soumis au groupe'};
 const dealershipOrder=new Intl.Collator('fr-CA',{sensitivity:'base',numeric:true});
 export function sortGroupRows(rows){return [...rows].sort((a,b)=>dealershipOrder.compare(a.name||'',b.name||'')||dealershipOrder.compare(a.id||'',b.id||''));}

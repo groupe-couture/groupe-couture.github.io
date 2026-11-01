@@ -1,7 +1,8 @@
-import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs';
-import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs';
-import {reportingPeriod} from './reporting.mjs';
-import {FONT_WIDTHS} from './pdf-font-metrics.mjs';
+import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.18.0';
+import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.0';
+import {reportingPeriod} from './reporting.mjs?v=1.18.0';
+import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.18.0';
+import {HISTORY_DEPARTMENTS,historyTotals,historyNotes} from './history-model.mjs?v=1.18.0';
 const WINANSI={8364:128,8218:130,402:131,8222:132,8230:133,8224:134,8225:135,710:136,8240:137,352:138,8249:139,338:140,381:142,8216:145,8217:146,8220:147,8221:148,8226:149,8211:150,8212:151,732:152,8482:153,353:154,8250:155,339:156,382:158,376:159};
 const normalize=value=>String(value??'').replace(/[\u00a0\u202f\t]/g,' ').replace(/[\r\n]+/g,' ').replace(/→/g,' > ').replace(/✓/g,'OK');
 const code=char=>char.charCodeAt(0)<256?char.charCodeAt(0):WINANSI[char.charCodeAt(0)]??63;
@@ -28,15 +29,15 @@ function createPage(){
 const state=reportStateLabel;
 function fitLabel(value,max,size,bold=false){let text=normalize(value);if(width(text,size,bold)<=max)return text;while(text&&width(text+'…',size,bold)>max)text=text.slice(0,-1);return text+'…';}
 const monthLabel=month=>new Date(month+'-15T12:00:00Z').toLocaleDateString('fr-CA',{month:'long',year:'numeric',timeZone:'America/Toronto'});
-function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulated,generatedAt,part,totalParts,pageNumber,totalPages}){
- const def=REPORT_DEPARTMENTS[id],page=createPage(),W=841.89,H=595.28,M=28,inner=W-2*M;
+function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulated,historical,generatedAt,part,totalParts,pageNumber,totalPages}){
+ const def=(historical?HISTORY_DEPARTMENTS:REPORT_DEPARTMENTS)[id],page=createPage(),W=841.89,H=595.28,M=28,inner=W-2*M;
  page.rect(0,H-69,W,69,NAVY);page.text('GROUPE COUTURE / SOMMAIRE DES DÉPARTEMENTS',M,H-23,{size:9.2,bold:true,color:[.74,.83,.89]});
  page.text(def.label,M,H-52,{size:23,bold:true,color:[1,1,1]});page.text(REPORT_LABELS[kind]+' · '+monthLabel(month),W-M,H-37,{size:10,right:true,color:[1,1,1]});
- if(kind==='weekly'&&periodEnd)page.text('Semaine au '+periodEnd,W-M,H-54,{size:8.5,right:true,color:[1,1,1]});
- page.rect(M,H-101,inner,21,[1,.956,.85]);page.text(simulated?'DONNÉES SIMULÉES - Aperçu de préparation. Aucun résultat réel raccordé.':'RAPPORTS SOUMIS AU GROUPE - Versions officielles conservées sur le serveur.',M+9,H-94,{size:8,bold:true,color:[.48,.34,.10]});
- const scopeLabel={all:'Toutes les concessions',received:'Rapports soumis',pending:'À recevoir'}[scope]||'Toutes les concessions';
+ if(['weekly','month_to_date'].includes(kind)&&periodEnd)page.text((historical?'Situation au ':'Semaine au ')+periodEnd,W-M,H-54,{size:8.5,right:true,color:[1,1,1]});
+ page.rect(M,H-101,inner,21,[1,.956,.85]);page.text(historical?'HISTORIQUE GOOGLE SHEETS - Import en lecture seule. Balance déclarée au fichier, sans validation DG automatique.':simulated?'DONNÉES SIMULÉES - Aperçu de préparation. Aucun résultat réel raccordé.':'RAPPORTS SOUMIS AU GROUPE - Versions officielles conservées sur le serveur.',M+9,H-94,{size:8,bold:true,color:[.48,.34,.10]});
+ const scopeLabel={all:'Toutes les concessions',received:historical?'Résultats importés':'Rapports soumis',pending:historical?'Résultats absents':'À recevoir'}[scope]||'Toutes les concessions';
  const filter=scopeLabel+(search?' · Recherche : '+search:'');page.text(fitLabel(filter,inner*.52,8.2),M,H-117,{size:8.2,color:MUTED});
- const totals=departmentTotals(allRows,id);page.text(allRows.length+' concessions affichées · '+totals.received+' départements soumis'+(totalParts>1?' · Feuillet '+part+'/'+totalParts:''),W-M,H-117,{size:8.2,color:MUTED,right:true});
+ const totals=(historical?historyTotals:departmentTotals)(allRows,id);page.text(allRows.length+' concessions affichées · '+totals.received+' départements '+(historical?'importés':'soumis')+(totalParts>1?' · Feuillet '+part+'/'+totalParts:''),W-M,H-117,{size:8.2,color:MUTED,right:true});
  const columns=[{key:'name',label:'Concession',format:'text',weight:146},...def.columns.map(([key,label,format,weight])=>({key,label,format,weight})),{key:'status',label:'État du rapport',format:'text',weight:99}];
  const totalWeight=columns.reduce((n,c)=>n+c.weight,0);let x=M;
  for(const c of columns){c.x=x;c.width=inner*c.weight/totalWeight;x+=c.width;}
@@ -53,16 +54,18 @@ function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulate
    if(col.format==='text'){
     const lines=wrap(raw,col.width-10,8.5,col.key==='name');
     lines.slice(0,2).forEach((line,n)=>page.text(fitLabel(line,col.width-10,lines.length>1?7:8.5,col.key==='name'),col.x+5,y-(lines.length>1?6.5+n*7.2:11.5),{size:lines.length>1?7:8.5,bold:col.key==='name',color:col.key==='status'?(values.hasOfficial?TEAL:MUTED):INK}));
+   }else if(historical&&col.key==='inventory'&&values.stockAsOf){
+    page.text(raw,col.x+col.width-5,y-7.1,{size:7.8,bold:true,right:true});page.text(values.stockAsOf,col.x+col.width-5,y-14.1,{size:5.8,color:MUTED,right:true});
    }else if(col.key==='coverage'&&values.coverage!==null){
-    page.text(raw,col.x+col.width-5,y-7.1,{size:7.8,bold:true,right:true});page.text(formatReportValue(values.inventory,'count')+' / '+formatReportValue(values.previousSales,'count'),col.x+col.width-5,y-14.1,{size:5.8,color:MUTED,right:true});
+    page.text(raw+(historical&&!values.referenceConfirmed?' *':''),col.x+col.width-5,y-7.1,{size:7.8,bold:true,right:true});page.text(formatReportValue(values.inventory,'count')+' / '+formatReportValue(values.previousSales,'count'),col.x+col.width-5,y-14.1,{size:5.8,color:MUTED,right:true});
    }else page.text(raw,col.x+col.width-5,y-11.5,{size:8.5,right:true});
   }
   page.line(M,y-rowH,W-M,y-rowH);y-=rowH;
  });
  page.rect(M,y-23,inner,23,[.884,.938,.944]);
- for(const col of columns){const value=col.key==='name'?'Groupe soumis':col.key==='status'?totals.received+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
+ for(const col of columns){const value=col.key==='name'?(historical?'Groupe importé':'Groupe soumis'):col.key==='status'?totals.received+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
  let noteY=y-36;
- for(const note of departmentNotes(id))for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
+ for(const note of (historical?historyNotes:departmentNotes)(id))for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
  page.line(M,30,W-M,30);const stamp=new Date(generatedAt).toLocaleString('fr-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
  page.text('Émis le '+stamp+' · Moyennes pondérées · Montants en dollars canadiens',M,17,{size:7,color:MUTED});page.text('Page '+pageNumber+' / '+totalPages,W-M,17,{size:7,right:true,color:MUTED});
  return page.commands.join('\n');
@@ -76,11 +79,11 @@ function assemblePDF(streams){
  const start=bytes(source).length;source+='xref\n0 '+objects.length+'\n0000000000 65535 f \n'+offsets.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+objects.length+' /Root 1 0 R >>\nstartxref\n'+start+'\n%%EOF\n';
  return bytes(source);
 }
-export function generateGroupPdf({rows,departmentIds,kind='weekly',month='2026-10',scope='all',search='',periodEnd=null,simulated=true,generatedAt=new Date().toISOString()}){
+export function generateGroupPdf({rows,departmentIds,kind='weekly',month='2026-10',scope='all',search='',periodEnd=null,simulated=true,historical=false,generatedAt=new Date().toISOString()}){
  const ids=selectedDepartments(departmentIds);if(!Array.isArray(rows)||!Object.hasOwn(REPORT_LABELS,kind)||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||Number.isNaN(Date.parse(generatedAt)))throw Error('Paramètres de rapport invalides.');
  if(kind==='weekly'&&periodEnd)reportingPeriod(kind,month,periodEnd);
  rows=sortGroupRows(rows);
  const chunks=Array.from({length:Math.max(1,Math.ceil(rows.length/19))},(_,i)=>rows.slice(i*19,(i+1)*19)),totalPages=chunks.length*ids.length,streams=[];
- for(const id of ids)chunks.forEach((chunk,i)=>streams.push(renderSheet({rows:chunk,allRows:rows,id,kind,month,scope,search,periodEnd,simulated,generatedAt,part:i+1,totalParts:chunks.length,pageNumber:streams.length+1,totalPages})));
+ for(const id of ids)chunks.forEach((chunk,i)=>streams.push(renderSheet({rows:chunk,allRows:rows,id,kind,month,scope,search,periodEnd,simulated,historical,generatedAt,part:i+1,totalParts:chunks.length,pageNumber:streams.length+1,totalPages})));
  return assemblePDF(streams);
 }

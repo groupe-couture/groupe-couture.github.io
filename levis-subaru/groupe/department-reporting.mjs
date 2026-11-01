@@ -1,5 +1,5 @@
-import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs';
-import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs';
+import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.0';
+import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs?v=1.18.0';
 export const REPORT_DEPARTMENTS={
  vn:{label:'Véhicules neufs',section:'vente:VN',columns:[['units','Ventes neuf','count',50],['vehicleAverage','Moy. profit véhicule','money',92],['financeAverage','Moy. profit F&I','money',89],['inventory','Inventaire','count',65],['coverage','Mois d’inventaire','ratio',84]]},
  vo:{label:'Véhicules d’occasion',section:'vente:VO',columns:[['units','Ventes détail','count',55],['wholesaleUnits','Wholesale','count',55],['vehicleAverage','Moy. profit véhicule','money',90],['financeAverage','Moy. profit F&I','money',85],['inventory','Inventaire','count',62],['coverage','Mois d’inventaire','ratio',80]]},
@@ -73,11 +73,11 @@ export function formatReportValue(value,format){
  if(!finite(value))return '—';
  return (FORMATTERS[format]||FORMATTERS.decimal).format(value)+(format==='percent'?' %':'');
 }
-export function reportStateLabel(row,id){const part=row.departments[id];return part.hasOfficial?(part.partial?'Cumul / données partiels':row.correcting?'Soumis / correction':'Soumis au groupe'):STATUS_LABELS[row.status]||'À recevoir';}
-export function dashboardCsv(rows,{department,month,kind,periodEnd=null,simulated=true}){
+export function reportStateLabel(row,id){const part=row.departments[id];if(row.historical)return !part.hasOfficial?'Aucun résultat fourni':part.partial?'Import partiel':part.sourceConfirmed?'Balance déclarée au fichier':'Importé · à confirmer';return part.hasOfficial?(part.partial?'Cumul / données partiels':row.correcting?'Soumis / correction':'Soumis au groupe'):STATUS_LABELS[row.status]||'À recevoir';}
+export function dashboardCsv(rows,{department,month,kind,periodEnd=null,simulated=true,historical=false,definitions=REPORT_DEPARTMENTS}){
  if(!Object.hasOwn(REPORT_DEPARTMENTS,department)||!Object.hasOwn(REPORT_LABELS,kind)||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Paramètres CSV invalides.');
- const quote=value=>'"'+String(/^[=+\-@\t\r]/.test(String(value??''))?"'"+value:value??'').replaceAll('"','""')+'"',def=REPORT_DEPARTMENTS[department];
- const data=[[simulated?'DONNÉES SIMULÉES':'RAPPORTS SOUMIS AU GROUPE',def.label,REPORT_LABELS[kind],month,kind==='weekly'?periodEnd||'':''],['Concession',...def.columns.map(([,label])=>label),'Rapport'],...sortGroupRows(rows).map(row=>[row.name,...def.columns.map(([key,,type])=>formatReportValue(row.departments[department][key],type)),reportStateLabel(row,department)])];
+ const quote=value=>'"'+String(/^[=+\-@\t\r]/.test(String(value??''))?"'"+value:value??'').replaceAll('"','""')+'"',def=definitions[department];
+ const data=[[historical?'HISTORIQUE GOOGLE SHEETS — À CONFIRMER':simulated?'DONNÉES SIMULÉES':'RAPPORTS SOUMIS AU GROUPE',def.label,REPORT_LABELS[kind],month,periodEnd||''],...(historical?[['Moyennes déclarées au détail; groupe et cumul pondérés à partir de moyennes arrondies. Wholesale séparé.'],['Inventaire : photo datée; ventes de référence du mois précédent. Aucune validation DG automatique.']]:[]),['Concession',...def.columns.map(([,label])=>label),'Rapport','Photo inventaire','Référence ventes','Balance référence'],...sortGroupRows(rows).map(row=>{const p=row.departments[department];return [row.name,...def.columns.map(([key,,type])=>formatReportValue(p[key],type)),reportStateLabel(row,department),p.stockAsOf||p.stockMonth||'',p.referenceMonth||'',historical&&p.referenceMonth?(p.referenceConfirmed?'Déclarée':'À confirmer'):''];})];
  return '\ufeff'+data.map(r=>r.map(quote).join(';')).join('\r\n');
 }
 export function departmentNotes(id){

@@ -1,4 +1,4 @@
-import {createCentralReporting,reportingWeeks,SECTIONS,STATUS_LABELS,draftFromExistingMetrics} from './central-reporting-core.mjs';
+import {createCentralReporting,reportingWeeks,SECTIONS,STATUS_LABELS,draftFromExistingMetrics} from './central-reporting-core.mjs?v=1.18.0';
 import {canViewModule} from './permissions.mjs';
 import {esc,today} from './domain.mjs';
 export const FIELD_LABELS={retailUnits:'Ventes au détail',retailVehicleProfit:'Profit total véhicules au détail ($)',financeProfit:'Profit total F&I ($)',wholesaleUnits:'Ventes wholesale',wholesaleProfit:'Profit total wholesale net ($)',inventory:'Véhicules en inventaire',walk:'Clients en salle',leads:'Demandes Internet',phone:'Appels',hours:'Heures vendues',revenue:'Chiffre d’affaires ($)',profit:'Profit brut ($)',ros:'Bons de réparation',presence:'Heures de présence',clocked:'Heures pointées',invoices:'Factures',prepared:'Véhicules préparés',waiting:'En attente',rework:'Reprises'};
@@ -39,6 +39,7 @@ export function createCentralReportingUI(ctx){
   $('#pageTitle').textContent='Rapports au groupe';$('#subtitle').textContent=s.profile.dealershipName+' · saisie, validation DG et soumission';$('#add').hidden=true;$('#metrics').innerHTML='';
   $('#toolbar').innerHTML=`<label>Type<select id="centralKind"><option value="monthly_final" ${kind==='monthly_final'?'selected':''}>Mois final</option><option value="weekly" ${kind==='weekly'?'selected':''}>Hebdomadaire</option></select></label><label>Mois<input id="centralMonth" type="month" required value="${month}"></label>${kind==='weekly'?`<label>Semaine<select id="centralWeek">${reportingWeeks(month).map(w=>`<option value="${w.periodEnd}" ${week===w.periodEnd?'selected':''}>${w.periodStart} au ${w.periodEnd}</option>`).join('')}</select></label>`:''}<button id="centralReload">Actualiser</button>`;
   for(const [id,assign]of [['centralKind',v=>kind=v],['centralMonth',v=>month=v],['centralWeek',v=>week=v]]){const el=$('#'+id);if(el)el.onchange=()=>{if(!el.value)return ctx.render();assign(el.value);loaded='';period=null;sections=[];ctx.render();};}
+  const historyLink=document.createElement('a');historyLink.href='groupe/?concession='+encodeURIComponent(s.profile.dealershipId);historyLink.textContent='Consulter l’historique Google Sheets 2026 →';$('#toolbar').append(historyLink);
   $('#centralReload').onclick=()=>{loaded='';reload();};
   if(s.demo){$('#content').innerHTML='<div class="notice">Le circuit des rapports réels utilise un compte connecté. L’aperçu local reste une simulation.</div>';return true;}
   if(!s.profile.reportingEnabled){$('#content').innerHTML='<div class="notice">Le reporting de cette concession est désactivé.</div>';return true;}
