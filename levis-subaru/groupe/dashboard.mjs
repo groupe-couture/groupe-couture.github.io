@@ -1,12 +1,12 @@
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.2';
-import {groupEntryLabel} from './group-membership.mjs?v=1.19.2';
-import {CONCESSIONS} from '../registry.mjs?v=1.19.2';
-import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.19.2';
-import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.19.2';
-import {generateGroupPdf} from './group-pdf.mjs?v=1.19.2';
-import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.19.2';
-import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis} from './history-model.mjs?v=1.19.2';
-import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.2';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.3';
+import {groupEntryLabel} from './group-membership.mjs?v=1.19.3';
+import {CONCESSIONS} from '../registry.mjs?v=1.19.3';
+import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.19.3';
+import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.19.3';
+import {generateGroupPdf} from './group-pdf.mjs?v=1.19.3';
+import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.19.3';
+import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis} from './history-model.mjs?v=1.19.3';
+import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.3';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const preciseNumber=new Intl.NumberFormat('fr-CA',{maximumFractionDigits:10});
 const format=formatReportValue,live=document.documentElement.dataset.mode==='live';
@@ -19,13 +19,15 @@ const monthLabel=m=>m?new Date(m+'-15T12:00:00').toLocaleDateString('fr-CA',{mon
 const metric=(label,value,detail)=>'<article class="kpi"><span>'+label+'</span><strong>'+value+'</strong><small>'+detail+'</small></article>';
 function renderCards(t){
  const financial=(key,note)=>t.partialTotals?'Total connu · partiel ('+(t.metricCoverage?.[key]?.received??0)+' / '+(t.metricCoverage?.[key]?.expected??0)+' concessions)':note;
+ const snapshot=(key,note)=>{const c=t.metricCoverage?.[key];return c&&c.received<c.expected?'Total connu · '+c.received+' / '+c.expected+' concessions · '+note:note;};
  if(department==='vn'||department==='vo'){
   const sales=metric(department==='vn'?'Ventes neuf':'Ventes au détail',format(t.units,'count'),department==='vo'?'Wholesale : '+format(t.wholesaleUnits,'count')+' unités':(historical()?'Départements importés : ':'Départements soumis : ')+(t.expected?t.received+' / '+t.expected:'aucun département attendu'));
   const stock='<article class="kpi stock-kpi"><span>Véhicules en inventaire</span><div class="stock-pair"><strong>'+format(t.inventory,'count')+'</strong><div><b>'+format(t.coverage,'ratio')+'</b><small>mois d’inventaire</small></div></div><small>'+(t.expected===0?'Sans objet · hors groupe':t.coverage===null?esc(t.coverageReason):'Inventaire ÷ ventes détail du mois précédent'+(historical()&&!t.referenceConfirmed?' · référence à confirmer':''))+'</small></article>';
   return sales+metric('Moyenne profit véhicule',format(t.vehicleAverage,'money'),historical()?'Moyennes déclarées au détail, pondérées':department==='vo'?'Détail + wholesale, après frais':'Profit véhicule ÷ ventes au détail')+metric('Moyenne profit F&I',format(t.financeAverage,'money'),historical()?'Moyennes F&I déclarées, pondérées':'Profits F&I ÷ ventes au détail')+stock;
  }
  if(department==='service'&&historical()&&serviceAnalysis==='retained')return metric('Heures vendues',format(t.hours,'decimal'),'Heures du suivi source')+metric('Heures disponibles',format(t.presence,'decimal'),'Temps disponible déclaré')+metric('Productivité',format(t.productivity,'percent'),'Heures pointées ÷ disponibles')+metric('Efficacité',format(t.efficiency,'percent'),'Heures vendues ÷ pointées');
- if(department==='service'&&historical())return metric('Chiffre d’affaires',format(t.revenue,'money'),financial('revenue','Main-d’œuvre · mois finaux'))+metric('Profit brut',format(t.profit,'money'),financial('profit','Montant déclaré au fichier'))+metric('BR ouverts',format(t.openROs,'count'),'Photo à la date du rapport')+metric('Techniciens',format(t.technicians,'count'),'Effectif déclaré');
+ if(department==='service'&&historical()&&(kind==='month_to_date'||serviceAnalysis==='organisation'||serviceAnalysis==='rates'))return metric('Aviseurs',format(t.advisors,'decimal'),snapshot('advisors','Effectif déclaré'))+metric('BR ouverts',format(t.openROs,'count'),snapshot('openROs','Photo à la date du rapport'))+metric('Techniciens',format(t.technicians,'decimal'),snapshot('technicians','Effectif déclaré'))+metric('Travaux en cours',format(t.wip,'money'),snapshot('wip','Montant déclaré · photo de la période'));
+ if(department==='service'&&historical())return metric('Ventes MO totales',format(t.revenue,'money'),financial('revenue','Mécanique · mois finaux'))+metric('Brut MO total',format(t.profit,'money'),financial('profit','Montant déclaré au fichier'))+metric('Marge MO calculée',format(t.margin,'percent'),'Brut MO total ÷ ventes MO totales')+metric('Données disponibles',t.received+' / '+t.expected,'Départements service avec des valeurs source');
  if(department==='service')return metric('Heures vendues',format(t.hours,'decimal'),'Heures facturées des rapports soumis')+metric('Chiffre d’affaires',format(t.revenue,'money'),'Main-d’œuvre du service')+metric('Productivité',format(t.productivity,'percent'),'Heures pointées ÷ présence')+metric('Efficacité',format(t.efficiency,'percent'),'Heures vendues ÷ heures pointées');
  return metric('Chiffre d’affaires',format(t.revenue,'money'),financial('revenue',historical()?'Départements pièces importés':'Départements pièces soumis'))+metric('Profit brut',format(t.profit,'money'),financial('profit','Résultats de la période'))+metric('Marge brute',format(t.margin,'percent'),'Profit brut ÷ chiffre d’affaires')+(historical()?metric('Données disponibles',t.received+' / '+t.expected,'Départements avec des valeurs source'):metric('Factures',format(t.invoices,'count'),'Nombre de factures'));
 }
@@ -56,6 +58,10 @@ function render(){
  $('#coverageText').textContent=t.pending+' à compléter · '+(section==='submissions'?'suivi des soumissions':'vue consolidée');
  $('#coverageBar').style.width=(current.length?100*t.completed/current.length:0)+'%';
  $('#cards').innerHTML=renderCards(t);$('#cards').hidden=section==='submissions';$('#sectionTitle').textContent=(section==='submissions'?'Suivi des soumissions · ':'')+def.label;$('#departmentPanel').setAttribute('aria-labelledby','tab-'+department);
+ const notice=$('#historyPeriodNotice'),financialButton=$('#historyMonthlyResults');
+ notice.hidden=!historical()||!['service','parts'].includes(department)||section==='submissions';
+ $('#historyPeriodText').textContent=department==='parts'?'Pièces · les ventes, le profit brut et la marge proviennent des onglets « Final ». Aucun suivi Pièces du mois à date n’est fourni dans Téléprésence.':kind==='month_to_date'?'Service · situation au '+weekEnd+' : effectifs, BR ouverts, travaux en cours, matériel et taux selon les cellules renseignées. Les résultats financiers sont dans l’onglet « Final » du mois.':kind==='ytd'?'Service · résultats des mois finaux inclus dans l’AAD. Effectifs, BR et taux : dernière photo disponible.':'Service · résultats de mécanique de l’onglet « Final ». Les analyses ci-dessous donnent accès aux autres données renseignées pour le mois.';
+ financialButton.hidden=department!=='service'||kind!=='month_to_date';financialButton.onclick=()=>{kind='monthly_final';serviceAnalysis='mechanics';refreshView();};
  const serviceTabs=$('#serviceAnalyses'),available=historical()?historyServiceAnalyses(allRows()):[];serviceTabs.hidden=!(historical()&&department==='service'&&section!=='submissions');serviceTabs.innerHTML=Object.entries(SERVICE_ANALYSES).map(([id,a])=>'<button data-service-analysis="'+id+'" aria-pressed="'+(serviceAnalysis===id)+'" '+(!available.includes(id)?'disabled title="Non renseigné dans le fichier pour cette période"':'')+'>'+esc(a.label)+'</button>').join('');serviceTabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{serviceAnalysis=b.dataset.serviceAnalysis;refreshView();});
  $('#tableHead').innerHTML=section==='submissions'?'<tr><th>Concession</th><th>Départements complétés</th><th>Validation DG</th><th>Version officielle</th><th>État</th><th></th></tr>':'<tr><th>Concession</th>'+def.columns.map(([,label])=>'<th class="num">'+esc(label)+'</th>').join('')+'<th>Rapport</th><th></th></tr>';
  $('#tableBody').innerHTML=current.map(row=>{
@@ -113,7 +119,7 @@ $('#export').onclick=()=>{
 updateWeeks();
 if(live){
  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');kind='monthly_final';$('#month').value=month;updateWeeks();
- import('./live-dashboard.mjs?v=1.19.2').then(({connectLiveDashboard})=>connectLiveDashboard({
+ import('./live-dashboard.mjs?v=1.19.3').then(({connectLiveDashboard})=>connectLiveDashboard({
  onClear(){detailGeneration++;sourceChosen=false;liveData={periods:[],submissions:[],history:{batch:null,records:[]}};cachedKey=null;cachedRows=null;clearReadyFile();$('#cards').innerHTML='';$('#tableBody').innerHTML='';$('#tableFoot').innerHTML='';document.querySelectorAll('dialog[open]').forEach(d=>d.close());},
  onData(data){
   dealers=data.dealerships;liveData=data;ownView=data.ownView;allowedDepartments=data.allowedDepartments;

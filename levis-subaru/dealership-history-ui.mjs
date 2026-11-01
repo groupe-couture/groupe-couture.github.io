@@ -1,11 +1,11 @@
-import {createCentralReporting} from './central-reporting-core.mjs?v=1.19.2';
-import {canEditObjectives,isMember} from './permissions.mjs?v=1.19.2';
-import {esc} from './domain.mjs?v=1.19.2';
-import {historyDashboardRows,historyDates,defaultHistorySelection,HISTORY_DEPARTMENTS,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis} from './groupe/history-model.mjs?v=1.19.2';
-import {SERVICE_ANALYSES,SERVICE_EXTRA_COLUMNS,SERVICE_NOTES} from './groupe/service-metrics.mjs?v=1.19.2';
-import {formatReportValue,reportStateLabel} from './groupe/department-reporting.mjs?v=1.19.2';
-import {aadPeriodLabel,aadPeriodNote} from './groupe/aad-period.mjs?v=1.19.2';
-import {generateGroupPdf} from './groupe/group-pdf.mjs?v=1.19.2';
+import {createCentralReporting} from './central-reporting-core.mjs?v=1.19.3';
+import {canEditObjectives,isMember} from './permissions.mjs?v=1.19.3';
+import {esc} from './domain.mjs?v=1.19.3';
+import {historyDashboardRows,historyDates,defaultHistorySelection,HISTORY_DEPARTMENTS,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis} from './groupe/history-model.mjs?v=1.19.3';
+import {SERVICE_ANALYSES,SERVICE_EXTRA_COLUMNS,SERVICE_NOTES} from './groupe/service-metrics.mjs?v=1.19.3';
+import {formatReportValue,reportStateLabel} from './groupe/department-reporting.mjs?v=1.19.3';
+import {aadPeriodLabel,aadPeriodNote} from './groupe/aad-period.mjs?v=1.19.3';
+import {generateGroupPdf} from './groupe/group-pdf.mjs?v=1.19.3';
 
 export function historyDepartments(profile){
  if(!isMember(profile)||profile.role==='employe'||profile.reportingEnabled===false)return [];
@@ -52,7 +52,8 @@ export function createDealershipHistory(ctx){
   serviceAnalysis=historyServiceAnalysis([row],serviceAnalysis,selection.kind);
   const availableService=historyServiceAnalyses([row]);
   const label=selection.kind==='ytd'?aadPeriodLabel(row.aad):selection.kind==='monthly_final'?'Mois final · '+selection.month:'Mois à date · situation au '+(selection.periodEnd||'aucun suivi disponible');
-  node.innerHTML='<section class="ls-panel dealership-history"><div class="ls-row ls-between"><div><span class="ls-secondary">FICHIER TÉLÉPRÉSENCE · DONNÉES IMPORTÉES</span><h2>'+esc(dealer.name)+'</h2></div><button data-history-refresh>Actualiser l’import</button></div><div class="ls-row history-controls"><label>Période importée<input data-history-month type="month" value="'+esc(selection.month)+'" required></label><label>Vue<select data-history-kind><option value="monthly_final">Mois final</option><option value="month_to_date" ' +(supportedMtd?'':'disabled')+'>Mois à date</option><option value="ytd">Année à date · AAD</option></select></label>'+(selection.kind==='month_to_date'?'<label>Situation au<select data-history-date>'+dates.map(d=>'<option value="'+d+'">'+d+'</option>').join('')+'</select></label>':'')+'<button data-history-pdf>PDF · '+esc(HISTORY_DEPARTMENTS[activeDepartment].label)+'</button>'+(ids.length>1?'<button data-history-pdf-all>PDF · tous les départements</button>':'')+'</div><p class="notice">'+esc(label)+(selection.kind==='ytd'?' · '+esc(aadPeriodNote(row.aad)):'')+'</p><p class="ls-footnote">Lecture seule · balance déclarée au fichier, sans validation DG automatique. Les données de cette concession sont affichées directement ici. — signifie non renseigné.</p>'+(ids.length>1?'<div class="ls-row history-departments" role="group" aria-label="Département importé">'+ids.map(id=>'<button data-history-department="'+id+'" aria-pressed="'+(activeDepartment===id)+'">'+esc(HISTORY_DEPARTMENTS[id].label)+'</button>').join('')+'</div>':'')+[activeDepartment].map(id=>{
+  const periodHint=activeDepartment==='parts'?'Pièces : ventes, profit brut et marge des onglets « Final ». Téléprésence ne fournit pas de suivi Pièces du mois à date.':activeDepartment==='service'&&selection.kind==='month_to_date'?'Service : les effectifs, les travaux et les taux sont une photo à la date choisie. Les résultats financiers sont dans l’onglet « Final » du mois.':'';
+  node.innerHTML='<section class="ls-panel dealership-history"><div class="ls-row ls-between"><div><span class="ls-secondary">FICHIER TÉLÉPRÉSENCE · DONNÉES IMPORTÉES</span><h2>'+esc(dealer.name)+'</h2></div><button data-history-refresh>Actualiser l’import</button></div><div class="ls-row history-controls"><label>Période importée<input data-history-month type="month" value="'+esc(selection.month)+'" required></label><label>Vue<select data-history-kind><option value="monthly_final">Mois final</option><option value="month_to_date" ' +(supportedMtd?'':'disabled')+'>Mois à date</option><option value="ytd">Année à date · AAD</option></select></label>'+(selection.kind==='month_to_date'?'<label>Situation au<select data-history-date>'+dates.map(d=>'<option value="'+d+'">'+d+'</option>').join('')+'</select></label>':'')+'<button data-history-pdf>PDF · '+esc(HISTORY_DEPARTMENTS[activeDepartment].label)+'</button>'+(ids.length>1?'<button data-history-pdf-all>PDF · tous les départements</button>':'')+'</div><p class="notice">'+esc(label)+(selection.kind==='ytd'?' · '+esc(aadPeriodNote(row.aad)):'')+'</p>'+(periodHint?'<p class="notice">'+esc(periodHint)+(activeDepartment==='service'?'<br><button data-history-monthly-results>Voir les résultats financiers du mois</button>':'')+'</p>':'')+'<p class="ls-footnote">Lecture seule · balance déclarée au fichier, sans validation DG automatique. Les données de cette concession sont affichées directement ici. — signifie non renseigné.</p>'+(ids.length>1?'<div class="ls-row history-departments" role="group" aria-label="Département importé">'+ids.map(id=>'<button data-history-department="'+id+'" aria-pressed="'+(activeDepartment===id)+'">'+esc(HISTORY_DEPARTMENTS[id].label)+'</button>').join('')+'</div>':'')+[activeDepartment].map(id=>{
    const part=row.departments[id],def=HISTORY_DEPARTMENTS[id],source=part.source;
    const group=SERVICE_ANALYSES[serviceAnalysis];
    const body=id==='service'?'<div class="ls-row history-service-analyses" role="group" aria-label="Analyse du service">'+Object.entries(SERVICE_ANALYSES).map(([key,a])=>'<button data-history-service="'+key+'" aria-pressed="'+(key===serviceAnalysis)+'" '+(!availableService.includes(key)?'disabled title="Non renseigné dans le fichier pour cette période"':'')+'>'+esc(a.label)+'</button>').join('')+'</div><h4>'+esc(group.label)+'</h4>'+table(group.columns,part)+(serviceAnalysis==='retained'?table(SERVICE_EXTRA_COLUMNS,part):''):table(def.columns,part);
@@ -63,6 +64,7 @@ export function createDealershipHistory(ctx){
   node.querySelector('[data-history-month]').onchange=e=>{if(/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value)){selection.month=e.target.value;paint();}};
   const date=node.querySelector('[data-history-date]');if(date){date.value=selection.periodEnd||'';date.onchange=e=>{selection.periodEnd=e.target.value;paint();};}
   node.querySelector('[data-history-refresh]').onclick=()=>load(true);
+  const monthlyResults=node.querySelector('[data-history-monthly-results]');if(monthlyResults)monthlyResults.onclick=()=>{selection.kind='monthly_final';serviceAnalysis='mechanics';paint();};
   const sourceDetails=node.querySelector('[data-history-source]');
   if(sourceDetails)sourceDetails.ontoggle=async()=>{
    if(!sourceDetails.open||sourceDetails.dataset.loaded)return;

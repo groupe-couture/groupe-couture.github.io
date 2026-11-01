@@ -1,6 +1,6 @@
-import {supabaseConfig} from '../supabase-config.js?v=1.19.2';
-import {readAccessContext} from '../access-context.mjs?v=1.19.2';
-import {createCentralReporting} from './reporting.mjs?v=1.19.2';
+import {supabaseConfig} from '../supabase-config.js?v=1.19.3';
+import {readAccessContext} from '../access-context.mjs?v=1.19.3';
+import {createCentralReporting} from './reporting.mjs?v=1.19.3';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function normalizeReportPeriods(periods,progress,submissions){
  return periods.map(p=>({...p,endDate:p.end_date,total:p.required_sections.length,
@@ -34,7 +34,17 @@ export async function connectLiveDashboard({onData,onClear}){
   finally{if(token===generation)pending=false;}
  }
  $('#groupLoginForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;try{const {error}=await client.auth.signInWithPassword({email:f.elements.email.value.trim(),password:f.elements.password.value});if(error)throw error;f.elements.password.value='';}catch(err){$('#groupError').textContent=err.message;}finally{b.disabled=false;}};
- $('#groupLogout').onclick=()=>client.auth.signOut();$('#groupReload').onclick=()=>{historyCache=null;refresh();};
+ $('#groupLogout').onclick=()=>client.auth.signOut();$('#groupReload').onclick=async()=>{
+  const button=$('#groupReload');button.disabled=true;
+  try{
+   // Le rafraîchissement des données seul laissait les écrans ouverts sur une ancienne version.
+   const response=await fetch(new URL('./release.json',import.meta.url),{cache:'no-store'});
+   const release=response.ok?await response.json():null;
+   if(/^\d+\.\d+\.\d+$/.test(release?.version)&&document.documentElement.dataset.version!==release.version){const url=new URL(location.href);url.searchParams.set('v',release.version);location.replace(url.href);return;}
+  }catch{/* Une erreur de vérification ne bloque pas l’actualisation des données. */}
+  finally{button.disabled=false;}
+  historyCache=null;await refresh();
+ };
  client.auth.onAuthStateChange((event,session)=>{
   if(!['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT','TOKEN_REFRESHED','USER_UPDATED'].includes(event))return;
   authenticated=!!session?.user;generation++;historyCache=null;scopeKey='';onClear();$('#groupShell').hidden=true;$('#groupLogin').hidden=false;$('#ownConcessions').innerHTML='';

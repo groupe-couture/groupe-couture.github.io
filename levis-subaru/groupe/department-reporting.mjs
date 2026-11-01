@@ -1,7 +1,7 @@
-import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.19.2';
-import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs?v=1.19.2';
-import {completionCounts,inGroupSubmissions,joinedMonths,groupEntryLabel} from './group-membership.mjs?v=1.19.2';
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.2';
+import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.19.3';
+import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs?v=1.19.3';
+import {completionCounts,inGroupSubmissions,joinedMonths,groupEntryLabel} from './group-membership.mjs?v=1.19.3';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.3';
 export const REPORT_DEPARTMENTS={
  vn:{label:'Véhicules neufs',section:'vente:VN',columns:[['units','Ventes neuf','count',50],['vehicleAverage','Moy. profit véhicule','money',92],['financeAverage','Moy. profit F&I','money',89],['inventory','Inventaire','count',65],['coverage','Mois d’inventaire','ratio',84]]},
  vo:{label:'Véhicules d’occasion',section:'vente:VO',columns:[['units','Ventes détail','count',55],['wholesaleUnits','Wholesale','count',55],['vehicleAverage','Moy. profit véhicule','money',90],['financeAverage','Moy. profit F&I','money',85],['inventory','Inventaire','count',62],['coverage','Mois d’inventaire','ratio',80]]},
@@ -73,7 +73,7 @@ export function filterDashboardRows(rows,{scope='all',search='',department=null}
   return (scope==='all'||scope==='received'&&received||scope==='pending'&&!completed)&&searchable(r.name).includes(query);
  });
 }
-const FORMATTERS={money:new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD',minimumFractionDigits:2,maximumFractionDigits:2}),count:new Intl.NumberFormat('fr-CA',{maximumFractionDigits:0}),ratio:new Intl.NumberFormat('fr-CA',{minimumFractionDigits:2,maximumFractionDigits:2}),percent:new Intl.NumberFormat('fr-CA',{minimumFractionDigits:1,maximumFractionDigits:1}),decimal:new Intl.NumberFormat('fr-CA',{maximumFractionDigits:1})};
+const FORMATTERS={money:new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD',minimumFractionDigits:2,maximumFractionDigits:2}),count:new Intl.NumberFormat('fr-CA',{maximumFractionDigits:0}),ratio:new Intl.NumberFormat('fr-CA',{minimumFractionDigits:2,maximumFractionDigits:2}),percent:new Intl.NumberFormat('fr-CA',{minimumFractionDigits:1,maximumFractionDigits:1}),decimal:new Intl.NumberFormat('fr-CA',{maximumFractionDigits:2})};
 export function formatReportValue(value,format){
  if(!finite(value))return '—';
  return (FORMATTERS[format]||FORMATTERS.decimal).format(value)+(format==='percent'?' %':'');

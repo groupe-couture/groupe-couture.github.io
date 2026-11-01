@@ -1,8 +1,8 @@
-import {sortGroupRows} from './dashboard-model.mjs?v=1.19.2';
-import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.19.2';
-import {groupStartMonth,outsideGroup,completionCounts} from './group-membership.mjs?v=1.19.2';
-import {historyAadPeriod} from './aad-period.mjs?v=1.19.2';
-import {SERVICE_ANALYSES,SERVICE_FLOW_KEYS,SERVICE_SNAPSHOT_KEYS,serviceDerived,SERVICE_NOTES} from './service-metrics.mjs?v=1.19.2';
+import {sortGroupRows} from './dashboard-model.mjs?v=1.19.3';
+import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.19.3';
+import {groupStartMonth,outsideGroup,completionCounts} from './group-membership.mjs?v=1.19.3';
+import {historyAadPeriod} from './aad-period.mjs?v=1.19.3';
+import {SERVICE_ANALYSES,SERVICE_FLOW_KEYS,SERVICE_SNAPSHOT_KEYS,serviceDerived,SERVICE_NOTES} from './service-metrics.mjs?v=1.19.3';
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
 const sum=vs=>vs.length&&vs.every(finite)?vs.reduce((a,b)=>a+b,0):null;
 const sumKnown=vs=>{const known=vs.filter(finite);return known.length?known.reduce((a,b)=>a+b,0):null;};
@@ -81,7 +81,7 @@ export function historyTotals(rows,id){
  if(id==='service'||id==='parts'){
   for(const key of id==='service'?[...SERVICE_FLOW_KEYS,'advisors','openROs','technicians','wip']:['revenue','profit'])t[key]=sumKnown(parts.map(p=>p[key]));
   t.partialTotals=t.pending>0||parts.some(p=>p.partial);
-  t.metricCoverage=Object.fromEntries(['revenue','profit'].map(key=>[key,{received:parts.filter(p=>finite(p[key])).length,expected:t.expected}]));
+  t.metricCoverage=Object.fromEntries(['revenue','profit','advisors','openROs','technicians','wip','shopMaterialsCost'].map(key=>[key,{received:parts.filter(p=>finite(p[key])).length,expected:t.expected}]));
  }
  if(id==='service'){
   Object.assign(t,serviceDerived(t,{annual:true}));
