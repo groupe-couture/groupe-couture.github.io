@@ -17,3 +17,4 @@
 
 .entry-month{color:#087c72;font-weight:600}
 .service-analyses{display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 16px}.service-analyses[hidden]{display:none}.service-analyses button[aria-pressed=true]{background:#12394c;color:white;border-color:#12394c}
+.service-analyses button{font-family:inherit;font-size:12px;font-weight:600;padding:10px 13px;min-height:38px;border:1px solid #d5e1e8;border-radius:7px;background:white;color:#294b5d;cursor:pointer}.service-analyses button:focus-visible{outline:3px solid #75b6d0;outline-offset:2px}

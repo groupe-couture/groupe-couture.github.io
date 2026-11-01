@@ -1,8 +1,8 @@
-import {sortGroupRows} from './dashboard-model.mjs?v=1.19.0';
-import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.19.0';
-import {groupStartMonth,outsideGroup,completionCounts} from './group-membership.mjs?v=1.19.0';
-import {historyAadPeriod} from './aad-period.mjs?v=1.19.0';
-import {SERVICE_ANALYSES,SERVICE_FLOW_KEYS,SERVICE_SNAPSHOT_KEYS,serviceDerived,SERVICE_NOTES} from './service-metrics.mjs?v=1.19.0';
+import {sortGroupRows} from './dashboard-model.mjs?v=1.19.1';
+import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.19.1';
+import {groupStartMonth,outsideGroup,completionCounts} from './group-membership.mjs?v=1.19.1';
+import {historyAadPeriod} from './aad-period.mjs?v=1.19.1';
+import {SERVICE_ANALYSES,SERVICE_FLOW_KEYS,SERVICE_SNAPSHOT_KEYS,serviceDerived,SERVICE_NOTES} from './service-metrics.mjs?v=1.19.1';
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
 const sum=vs=>vs.length&&vs.every(finite)?vs.reduce((a,b)=>a+b,0):null;
 const divide=(a,b,m=1)=>finite(a)&&finite(b)&&b>0?a/b*m:null;

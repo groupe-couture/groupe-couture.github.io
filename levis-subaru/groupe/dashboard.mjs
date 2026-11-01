@@ -1,12 +1,12 @@
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.0';
-import {groupEntryLabel} from './group-membership.mjs?v=1.19.0';
-import {CONCESSIONS} from '../registry.mjs?v=1.19.0';
-import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.19.0';
-import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.19.0';
-import {generateGroupPdf} from './group-pdf.mjs?v=1.19.0';
-import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.19.0';
-import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection} from './history-model.mjs?v=1.19.0';
-import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.0';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.1';
+import {groupEntryLabel} from './group-membership.mjs?v=1.19.1';
+import {CONCESSIONS} from '../registry.mjs?v=1.19.1';
+import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.19.1';
+import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.19.1';
+import {generateGroupPdf} from './group-pdf.mjs?v=1.19.1';
+import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.19.1';
+import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection} from './history-model.mjs?v=1.19.1';
+import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.1';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const preciseNumber=new Intl.NumberFormat('fr-CA',{maximumFractionDigits:10});
 const format=formatReportValue,live=document.documentElement.dataset.mode==='live';
@@ -107,7 +107,7 @@ $('#export').onclick=()=>{
 updateWeeks();
 if(live){
  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');kind='monthly_final';$('#month').value=month;updateWeeks();
- import('./live-dashboard.mjs?v=1.19.0').then(({connectLiveDashboard})=>connectLiveDashboard({
+ import('./live-dashboard.mjs?v=1.19.1').then(({connectLiveDashboard})=>connectLiveDashboard({
  onClear(){detailGeneration++;sourceChosen=false;liveData={periods:[],submissions:[],history:{batch:null,records:[]}};cachedKey=null;cachedRows=null;clearReadyFile();$('#cards').innerHTML='';$('#tableBody').innerHTML='';$('#tableFoot').innerHTML='';document.querySelectorAll('dialog[open]').forEach(d=>d.close());},
  onData(data){
   dealers=data.dealerships;liveData=data;ownView=data.ownView;allowedDepartments=data.allowedDepartments;

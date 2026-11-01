@@ -1,4 +1,4 @@
-import {periodsForMonth} from '../reporting.mjs?v=1.19.0';
+import {periodsForMonth} from '../reporting.mjs?v=1.19.1';
 export const reportingWeeks=periodsForMonth;
 export function reportDataForSelection(data,{kind,periodEnd}){
  if(kind!=='weekly')return data;
