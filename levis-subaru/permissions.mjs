@@ -12,7 +12,7 @@ export function canEditObjectives(profile,department){return canViewSubcategory(
 export function availableSubcategories(profile,group){return (SUBMENUS[group]||[]).filter(([key])=>canViewSubcategory(profile,group,key));}
 export function canViewTeam(profile,view){return canViewSubcategory(profile,'team',view);}
 export function availableTeamViews(profile){return availableSubcategories(profile,'team');}
-export function canViewGroup(profile){return isMember(profile)&&(profile.canReadGroup===true||profile.role==='dg'||profile.role==='admin');}
+export function canViewGroup(profile){return isMember(profile)&&profile.role!=='employe'&&(profile.canReadGroup===true||profile.role==='dg'||profile.role==='admin');}
 export function canViewModule(profile,tab){
  if(!isMember(profile))return false;
  if(['vo','deliveries','calendar','team'].includes(tab))return true;
