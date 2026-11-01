@@ -1,11 +1,11 @@
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.1';
-import {groupEntryLabel} from './group-membership.mjs?v=1.19.1';
-import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.19.1';
-import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.19.1';
-import {reportingPeriod} from './reporting.mjs?v=1.19.1';
-import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.19.1';
-import {HISTORY_DEPARTMENTS,historyTotals,historyNotes} from './history-model.mjs?v=1.19.1';
-import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.1';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.2';
+import {groupEntryLabel} from './group-membership.mjs?v=1.19.2';
+import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.19.2';
+import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.19.2';
+import {reportingPeriod} from './reporting.mjs?v=1.19.2';
+import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.19.2';
+import {HISTORY_DEPARTMENTS,historyTotals,historyNotes,historyServiceAnalyses} from './history-model.mjs?v=1.19.2';
+import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.2';
 const WINANSI={8364:128,8218:130,402:131,8222:132,8230:133,8224:134,8225:135,710:136,8240:137,352:138,8249:139,338:140,381:142,8216:145,8217:146,8220:147,8221:148,8226:149,8211:150,8212:151,732:152,8482:153,353:154,8250:155,339:156,382:158,376:159};
 const normalize=value=>String(value??'').replace(/[\u00a0\u202f\t]/g,' ').replace(/[\r\n]+/g,' ').replace(/→/g,' > ').replace(/✓/g,'OK');
 const code=char=>char.charCodeAt(0)<256?char.charCodeAt(0):WINANSI[char.charCodeAt(0)]??63;
@@ -67,7 +67,7 @@ function renderSheet({rows,allRows,id,serviceAnalysis,kind,month,scope,search,pe
   page.line(M,y-rowH,W-M,y-rowH);y-=rowH;
  });
  page.rect(M,y-23,inner,23,[.884,.938,.944]);
- for(const col of columns){const value=col.key==='name'?(historical?'Groupe importé':'Groupe soumis'):col.key==='status'?totals.completed+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
+ for(const col of columns){const value=col.key==='name'?(historical?totals.partialTotals?'Total connu · partiel':'Groupe importé':'Groupe soumis'):col.key==='status'?totals.completed+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
  let noteY=y-36;
  for(const note of [...(historical?historyNotes:departmentNotes)(id),...(kind==='ytd'?[aadPeriodNote(allRows[0]?.aad)]:[])])for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
  page.line(M,30,W-M,30);const stamp=new Date(generatedAt).toLocaleString('fr-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -87,7 +87,8 @@ export function generateGroupPdf({rows,departmentIds,kind='weekly',month='2026-1
  const ids=selectedDepartments(departmentIds);if(!Array.isArray(rows)||!Object.hasOwn(REPORT_LABELS,kind)||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||Number.isNaN(Date.parse(generatedAt)))throw Error('Paramètres de rapport invalides.');
  if(kind==='weekly'&&periodEnd)reportingPeriod(kind,month,periodEnd);
  rows=sortGroupRows(rows);
- const sheets=ids.flatMap(id=>historical&&id==='service'?Object.keys(SERVICE_ANALYSES).map(serviceAnalysis=>({id,serviceAnalysis})):[{id}]),pages=sheets.flatMap(sheet=>{const size=historical&&sheet.id==='service'?16:19,n=Math.max(1,Math.ceil(rows.length/size));return Array.from({length:n},(_,i)=>({...sheet,rows:rows.slice(i*size,(i+1)*size),part:i+1,totalParts:n}));}),totalPages=pages.length,streams=[];
+ const available=historyServiceAnalyses(rows),analyses=available.length?available:['mechanics'];
+ const sheets=ids.flatMap(id=>historical&&id==='service'?analyses.map(serviceAnalysis=>({id,serviceAnalysis})):[{id}]),pages=sheets.flatMap(sheet=>{const size=historical&&sheet.id==='service'?16:19,n=Math.max(1,Math.ceil(rows.length/size));return Array.from({length:n},(_,i)=>({...sheet,rows:rows.slice(i*size,(i+1)*size),part:i+1,totalParts:n}));}),totalPages=pages.length,streams=[];
  for(const page of pages)streams.push(renderSheet({...page,allRows:rows,kind,month,scope,search,periodEnd,simulated,historical,generatedAt,pageNumber:streams.length+1,totalPages}));
  return assemblePDF(streams);
 }

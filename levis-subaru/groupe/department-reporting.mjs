@@ -1,7 +1,7 @@
-import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.19.1';
-import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs?v=1.19.1';
-import {completionCounts,inGroupSubmissions,joinedMonths,groupEntryLabel} from './group-membership.mjs?v=1.19.1';
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.1';
+import {dashboardRows,demoReportSet,REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.19.2';
+import {latestOfficialSubmissions,officialYearToDate,SECTIONS,STATUS_LABELS} from './reporting.mjs?v=1.19.2';
+import {completionCounts,inGroupSubmissions,joinedMonths,groupEntryLabel} from './group-membership.mjs?v=1.19.2';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.2';
 export const REPORT_DEPARTMENTS={
  vn:{label:'Véhicules neufs',section:'vente:VN',columns:[['units','Ventes neuf','count',50],['vehicleAverage','Moy. profit véhicule','money',92],['financeAverage','Moy. profit F&I','money',89],['inventory','Inventaire','count',65],['coverage','Mois d’inventaire','ratio',84]]},
  vo:{label:'Véhicules d’occasion',section:'vente:VO',columns:[['units','Ventes détail','count',55],['wholesaleUnits','Wholesale','count',55],['vehicleAverage','Moy. profit véhicule','money',90],['financeAverage','Moy. profit F&I','money',85],['inventory','Inventaire','count',62],['coverage','Mois d’inventaire','ratio',80]]},

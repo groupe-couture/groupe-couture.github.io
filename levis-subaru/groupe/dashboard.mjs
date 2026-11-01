@@ -1,33 +1,35 @@
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.1';
-import {groupEntryLabel} from './group-membership.mjs?v=1.19.1';
-import {CONCESSIONS} from '../registry.mjs?v=1.19.1';
-import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.19.1';
-import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.19.1';
-import {generateGroupPdf} from './group-pdf.mjs?v=1.19.1';
-import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.19.1';
-import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection} from './history-model.mjs?v=1.19.1';
-import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.1';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.19.2';
+import {groupEntryLabel} from './group-membership.mjs?v=1.19.2';
+import {CONCESSIONS} from '../registry.mjs?v=1.19.2';
+import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.19.2';
+import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.19.2';
+import {generateGroupPdf} from './group-pdf.mjs?v=1.19.2';
+import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.19.2';
+import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis} from './history-model.mjs?v=1.19.2';
+import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.19.2';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const preciseNumber=new Intl.NumberFormat('fr-CA',{maximumFractionDigits:10});
 const format=formatReportValue,live=document.documentElement.dataset.mode==='live';
 let dealers=dashboardDealerships(CONCESSIONS),liveData={periods:[],submissions:[],history:{batch:null,records:[]}},source='official',sourceChosen=false,allowedDepartments=Object.keys(REPORT_DEPARTMENTS),ownView=false;
-let kind='weekly',month='2026-10',weekEnd=reportingWeeks(month).at(-1).periodEnd,scope='all',search='',department='vn',section='consolidation',serviceAnalysis='organisation',pdfObjectUrl=null,cachedKey=null,cachedRows=null,detailGeneration=0;
+let kind='weekly',month='2026-10',weekEnd=reportingWeeks(month).at(-1).periodEnd,scope='all',search='',department='vn',section='consolidation',serviceAnalysis='mechanics',pdfObjectUrl=null,cachedKey=null,cachedRows=null,detailGeneration=0;
 const historical=()=>live&&source==='history',definitions=()=>historical()?historyDefinitions(serviceAnalysis):REPORT_DEPARTMENTS;
 function allRows(){const key=source+'|'+kind+'|'+month+'|'+weekEnd;if(key!==cachedKey){cachedRows=historical()?historyDashboardRows(dealers,liveData.history.records,{kind,month,periodEnd:weekEnd}):departmentDashboardRows(dealers.filter(d=>!d.historical_only),live?reportDataForSelection(liveData,{kind,periodEnd:weekEnd}):demoDashboardReports(dealers,{kind,month,periodEnd:weekEnd}),{kind,year:Number(month.slice(0,4)),month:Number(month.slice(5))});cachedKey=key;}return cachedRows;}
 const rows=()=>filterDashboardRows(allRows(),{scope,search,department});
 const monthLabel=m=>m?new Date(m+'-15T12:00:00').toLocaleDateString('fr-CA',{month:'short',year:'numeric'}):'';
 const metric=(label,value,detail)=>'<article class="kpi"><span>'+label+'</span><strong>'+value+'</strong><small>'+detail+'</small></article>';
 function renderCards(t){
+ const financial=(key,note)=>t.partialTotals?'Total connu · partiel ('+(t.metricCoverage?.[key]?.received??0)+' / '+(t.metricCoverage?.[key]?.expected??0)+' concessions)':note;
  if(department==='vn'||department==='vo'){
   const sales=metric(department==='vn'?'Ventes neuf':'Ventes au détail',format(t.units,'count'),department==='vo'?'Wholesale : '+format(t.wholesaleUnits,'count')+' unités':(historical()?'Départements importés : ':'Départements soumis : ')+(t.expected?t.received+' / '+t.expected:'aucun département attendu'));
   const stock='<article class="kpi stock-kpi"><span>Véhicules en inventaire</span><div class="stock-pair"><strong>'+format(t.inventory,'count')+'</strong><div><b>'+format(t.coverage,'ratio')+'</b><small>mois d’inventaire</small></div></div><small>'+(t.expected===0?'Sans objet · hors groupe':t.coverage===null?esc(t.coverageReason):'Inventaire ÷ ventes détail du mois précédent'+(historical()&&!t.referenceConfirmed?' · référence à confirmer':''))+'</small></article>';
   return sales+metric('Moyenne profit véhicule',format(t.vehicleAverage,'money'),historical()?'Moyennes déclarées au détail, pondérées':department==='vo'?'Détail + wholesale, après frais':'Profit véhicule ÷ ventes au détail')+metric('Moyenne profit F&I',format(t.financeAverage,'money'),historical()?'Moyennes F&I déclarées, pondérées':'Profits F&I ÷ ventes au détail')+stock;
  }
- if(department==='service'&&historical())return metric('Chiffre d’affaires',format(t.revenue,'money'),'Main-d’œuvre · mois finaux')+metric('Profit brut',format(t.profit,'money'),'Montant déclaré au fichier')+metric('BR ouverts',format(t.openROs,'count'),'Photo à la date du rapport')+metric('Techniciens',format(t.technicians,'count'),'Effectif déclaré');
+ if(department==='service'&&historical()&&serviceAnalysis==='retained')return metric('Heures vendues',format(t.hours,'decimal'),'Heures du suivi source')+metric('Heures disponibles',format(t.presence,'decimal'),'Temps disponible déclaré')+metric('Productivité',format(t.productivity,'percent'),'Heures pointées ÷ disponibles')+metric('Efficacité',format(t.efficiency,'percent'),'Heures vendues ÷ pointées');
+ if(department==='service'&&historical())return metric('Chiffre d’affaires',format(t.revenue,'money'),financial('revenue','Main-d’œuvre · mois finaux'))+metric('Profit brut',format(t.profit,'money'),financial('profit','Montant déclaré au fichier'))+metric('BR ouverts',format(t.openROs,'count'),'Photo à la date du rapport')+metric('Techniciens',format(t.technicians,'count'),'Effectif déclaré');
  if(department==='service')return metric('Heures vendues',format(t.hours,'decimal'),'Heures facturées des rapports soumis')+metric('Chiffre d’affaires',format(t.revenue,'money'),'Main-d’œuvre du service')+metric('Productivité',format(t.productivity,'percent'),'Heures pointées ÷ présence')+metric('Efficacité',format(t.efficiency,'percent'),'Heures vendues ÷ heures pointées');
- return metric('Chiffre d’affaires',format(t.revenue,'money'),historical()?'Départements pièces importés':'Départements pièces soumis')+metric('Profit brut',format(t.profit,'money'),'Résultats de la période')+metric('Marge brute',format(t.margin,'percent'),'Profit brut ÷ chiffre d’affaires')+(historical()?metric('Données disponibles',t.received+' / '+t.expected,'Départements avec des valeurs source'):metric('Factures',format(t.invoices,'count'),'Nombre de factures'));
+ return metric('Chiffre d’affaires',format(t.revenue,'money'),financial('revenue',historical()?'Départements pièces importés':'Départements pièces soumis'))+metric('Profit brut',format(t.profit,'money'),financial('profit','Résultats de la période'))+metric('Marge brute',format(t.margin,'percent'),'Profit brut ÷ chiffre d’affaires')+(historical()?metric('Données disponibles',t.received+' / '+t.expected,'Départements avec des valeurs source'):metric('Factures',format(t.invoices,'count'),'Nombre de factures'));
 }
-function qualityNote(part){return part.missingMonths?.length?part.missingMonths.length+' mois manquant(s) : '+part.missingMonths.map(monthLabel).join(', '):part.issues?.length?'Brut pièces clients : format du pourcentage à confirmer':part.partial?'Données incomplètes dans '+(historical()?'le fichier source':'la version soumise'):'';}
+function qualityNote(part){const financial=[...new Set(Object.values(part.metricMissingMonths||{}).flat())];return part.missingMonths?.length?part.missingMonths.length+' mois manquant(s) : '+part.missingMonths.map(monthLabel).join(', '):financial.length?'Données financières partielles : '+financial.map(monthLabel).join(', '):part.issues?.length?part.issues.includes('reportedMargin')?'Marge Pièces : format de la cellule source à confirmer':'Brut pièces clients : format du pourcentage à confirmer':part.partial?'Données incomplètes dans '+(historical()?'le fichier source':'la version soumise'):'';}
 function cells(part){return definitions()[department].columns.map(([key,,type])=>{
  if(part.outsideGroup)return '<td class="num">—</td>';
  let detail='';
@@ -36,6 +38,10 @@ function cells(part){return definitions()[department].columns.map(([key,,type])=
  return '<td class="num">'+format(part[key],type)+(detail?'<small>'+esc(detail)+'</small>':'')+'</td>';
 }).join('');}
 function render(){
+ if(historical()){
+  const next=historyDepartmentSelection(liveData.history.records,{kind,month,periodEnd:weekEnd},department);kind=next.kind;
+  if(department==='service')serviceAnalysis=historyServiceAnalysis(allRows(),serviceAnalysis,kind);
+ }
  const current=rows(),def=definitions()[department],t=(historical()?historyTotals:departmentTotals)(current,department),received=t.received;
  $('#periodLabel').textContent=kind==='ytd'?aadPeriodLabel(allRows()[0]?.aad)+' · sélection : '+monthLabel(month):REPORT_LABELS[kind]+' · '+new Date(month+'-15T12:00:00').toLocaleDateString('fr-CA',{month:'long',year:'numeric'})+(['weekly','month_to_date'].includes(kind)?' · au '+weekEnd:'');
  $('#dataSource').closest('label').hidden=!live||ownView;
@@ -44,13 +50,13 @@ function render(){
  $('#reportCounts').textContent=t.completed+' / '+current.length+' départements complétés · '+received+' '+(historical()?'importés':'soumis')+(t.exempt?' · '+t.exempt+' hors groupe':'')+' · '+def.label;
  document.querySelector('footer span:last-child').textContent=historical()?'Historique Google Sheets 2026 · lecture seule':'Saisie directeurs → validation DG → soumission au groupe';
  $('#coverageRule').textContent=kind==='ytd'?aadPeriodNote(allRows()[0]?.aad):historical()?'Historique importé en lecture seule. Les cases de balance proviennent du fichier; elles ne constituent pas une validation dans la plateforme. Le cumul additionne les mois finaux seulement.':'Seules les versions soumises entrent dans les résultats. Le cumul annuel utilise les mois finaux confirmés.';
- document.querySelector('[data-kind="weekly"]').hidden=historical();document.querySelector('[data-kind="month_to_date"]').hidden=!historical();
+ document.querySelector('[data-kind="weekly"]').hidden=historical();document.querySelector('[data-kind="month_to_date"]').hidden=!historical()||historyDepartmentSelection(liveData.history.records,{kind:'month_to_date',month,periodEnd:weekEnd},department).kind!=='month_to_date';
  document.querySelector('[data-section="submissions"]').hidden=historical();
  $('#scope').options[1].textContent=historical()?'Complétés / importés':'Complétés / soumis';$('#scope').options[2].textContent='À compléter';
  $('#coverageText').textContent=t.pending+' à compléter · '+(section==='submissions'?'suivi des soumissions':'vue consolidée');
  $('#coverageBar').style.width=(current.length?100*t.completed/current.length:0)+'%';
  $('#cards').innerHTML=renderCards(t);$('#cards').hidden=section==='submissions';$('#sectionTitle').textContent=(section==='submissions'?'Suivi des soumissions · ':'')+def.label;$('#departmentPanel').setAttribute('aria-labelledby','tab-'+department);
- const serviceTabs=$('#serviceAnalyses');serviceTabs.hidden=!(historical()&&department==='service'&&section!=='submissions');serviceTabs.innerHTML=Object.entries(SERVICE_ANALYSES).map(([id,a])=>'<button data-service-analysis="'+id+'" aria-pressed="'+(serviceAnalysis===id)+'">'+esc(a.label)+'</button>').join('');serviceTabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{serviceAnalysis=b.dataset.serviceAnalysis;refreshView();});
+ const serviceTabs=$('#serviceAnalyses'),available=historical()?historyServiceAnalyses(allRows()):[];serviceTabs.hidden=!(historical()&&department==='service'&&section!=='submissions');serviceTabs.innerHTML=Object.entries(SERVICE_ANALYSES).map(([id,a])=>'<button data-service-analysis="'+id+'" aria-pressed="'+(serviceAnalysis===id)+'" '+(!available.includes(id)?'disabled title="Non renseigné dans le fichier pour cette période"':'')+'>'+esc(a.label)+'</button>').join('');serviceTabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{serviceAnalysis=b.dataset.serviceAnalysis;refreshView();});
  $('#tableHead').innerHTML=section==='submissions'?'<tr><th>Concession</th><th>Départements complétés</th><th>Validation DG</th><th>Version officielle</th><th>État</th><th></th></tr>':'<tr><th>Concession</th>'+def.columns.map(([,label])=>'<th class="num">'+esc(label)+'</th>').join('')+'<th>Rapport</th><th></th></tr>';
  $('#tableBody').innerHTML=current.map(row=>{
   const part=row.departments[department];
@@ -58,7 +64,7 @@ function render(){
   const workflow=part.outsideGroup?'<td>'+row.total+' / '+row.total+'</td><td>Non requise · hors groupe</td><td>Sans objet</td>':'<td>'+row.completed+' / '+row.total+'</td><td>'+(row.correcting?'À revalider':row.status==='submitted'||row.status==='validated'?'Validé par le DG':'À valider')+'</td><td>'+(part.hasOfficial?'Disponible':'À recevoir')+'</td>';
   return '<tr data-dealer="'+esc(row.id)+'" tabindex="0"><td><strong>'+esc(row.name)+'</strong>'+(groupEntryLabel(row)?'<small class="entry-month">'+esc(groupEntryLabel(row))+'</small>':'')+'<small>'+esc(note)+'</small></td>'+(section==='submissions'?workflow:cells(part))+'<td><span class="state '+(part.outsideGroup||part.hasOfficial&&!part.partial&&!row.correcting?'green':row.status==='validated'?'blue':'amber')+'">'+esc(reportStateLabel(row,department))+'</span>'+(kind==='monthly_final'&&part.hasOfficial&&row.balance?'<small class="balanced">✓ Balance avec le bilan</small>':'')+'</td><td><button class="open-report" aria-label="Voir '+esc(def.label)+' de '+esc(row.name)+'">Voir →</button></td></tr>';
  }).join('')||'<tr><td colspan="'+(section==='submissions'?6:def.columns.length+3)+'">Aucune concession dans cette sélection.</td></tr>';
- $('#tableFoot').innerHTML=section==='submissions'?'<tr><th>Réception du département</th><td colspan="5">'+t.completed+' / '+t.dealers+' · '+esc(def.label)+'</td></tr>':'<tr><th>'+(historical()?'Groupe importé':'Groupe soumis')+'</th>'+def.columns.map(([key,,type])=>'<th class="num">'+format(t[key],type)+'</th>').join('')+'<td>'+t.completed+' / '+t.dealers+'</td><td></td></tr>';
+ $('#tableFoot').innerHTML=section==='submissions'?'<tr><th>Réception du département</th><td colspan="5">'+t.completed+' / '+t.dealers+' · '+esc(def.label)+'</td></tr>':'<tr><th>'+(historical()?t.partialTotals?'Total connu · partiel':'Groupe importé':'Groupe soumis')+'</th>'+def.columns.map(([key,,type])=>'<th class="num">'+format(t[key],type)+'</th>').join('')+'<td>'+t.completed+' / '+t.dealers+'</td><td></td></tr>';
  $('#calculationNotes').innerHTML=(historical()?historyNotes:departmentNotes)(department).map(n=>'<p>'+esc(n)+'</p>').join('');
  document.querySelectorAll('[data-dealer]').forEach(el=>{el.onclick=()=>openReport(current.find(r=>r.id===el.dataset.dealer));el.onkeydown=e=>{if(e.target===el&&['Enter',' '].includes(e.key)){e.preventDefault();el.click();}};});
  document.querySelectorAll('[data-kind]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.kind===kind));
@@ -95,7 +101,7 @@ function updateWeeks(){
  else{const weeks=reportingWeeks(month);if(!weeks.some(w=>w.periodEnd===weekEnd))weekEnd=weeks.at(-1).periodEnd;$('#week').innerHTML=weeks.map(w=>'<option value="'+w.periodEnd+'">'+w.periodStart+' au '+w.periodEnd+'</option>').join('');}$('#week').value=weekEnd;
 }
 $('#dataSource').onchange=e=>{source=e.target.value;sourceChosen=true;section='consolidation';if(historical()&&kind==='weekly')kind='month_to_date';if(!historical()&&kind==='month_to_date')kind='weekly';updateWeeks();refreshView();};
-document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.kind;refreshView();});document.querySelectorAll('[data-department]').forEach(b=>b.onclick=()=>{department=b.dataset.department;refreshView();});document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>{section=b.dataset.section;refreshView();});
+document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.kind;if(department==='service')serviceAnalysis=kind==='month_to_date'?'organisation':'mechanics';refreshView();});document.querySelectorAll('[data-department]').forEach(b=>b.onclick=()=>{department=b.dataset.department;if(department==='service')serviceAnalysis=kind==='month_to_date'?'organisation':'mechanics';refreshView();});document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>{section=b.dataset.section;refreshView();});
 $('#month').onchange=e=>{if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value)||!reportingWeeks(e.target.value).length){e.target.value=month;return;}month=e.target.value;updateWeeks();refreshView();};$('#week').onchange=e=>{weekEnd=e.target.value;refreshView();};$('#scope').onchange=e=>{scope=e.target.value;refreshView();};$('#search').oninput=e=>{search=e.target.value;refreshView();};$('#closeDetail').onclick=()=>$('#detail').close();
 document.querySelectorAll('[data-department]').forEach(b=>b.onkeydown=e=>{const tabs=[...document.querySelectorAll('[data-department]')].filter(t=>!t.hidden),index=tabs.indexOf(b);let target;if(e.key==='ArrowRight')target=tabs[(index+1)%tabs.length];if(e.key==='ArrowLeft')target=tabs[(index+tabs.length-1)%tabs.length];if(e.key==='Home')target=tabs[0];if(e.key==='End')target=tabs.at(-1);if(target){e.preventDefault();target.focus();target.click();}});
 $('#pdfOpen').onclick=()=>openPdf(Object.keys(REPORT_DEPARTMENTS));$('#pdfCurrent').onclick=()=>openPdf([department]);$('#pdfClose').onclick=()=>$('#pdfDialog').close();document.querySelectorAll('[name="pdfDepartment"]').forEach(el=>el.onchange=updatePdfSelection);
@@ -107,7 +113,7 @@ $('#export').onclick=()=>{
 updateWeeks();
 if(live){
  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');kind='monthly_final';$('#month').value=month;updateWeeks();
- import('./live-dashboard.mjs?v=1.19.1').then(({connectLiveDashboard})=>connectLiveDashboard({
+ import('./live-dashboard.mjs?v=1.19.2').then(({connectLiveDashboard})=>connectLiveDashboard({
  onClear(){detailGeneration++;sourceChosen=false;liveData={periods:[],submissions:[],history:{batch:null,records:[]}};cachedKey=null;cachedRows=null;clearReadyFile();$('#cards').innerHTML='';$('#tableBody').innerHTML='';$('#tableFoot').innerHTML='';document.querySelectorAll('dialog[open]').forEach(d=>d.close());},
  onData(data){
   dealers=data.dealerships;liveData=data;ownView=data.ownView;allowedDepartments=data.allowedDepartments;

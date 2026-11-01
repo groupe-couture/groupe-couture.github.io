@@ -1,5 +1,5 @@
-import {today} from './domain.mjs?v=1.19.1';
-import {periodsForMonth,summarizeReports,number} from './reporting.mjs?v=1.19.1';
+import {today} from './domain.mjs?v=1.19.2';
+import {periodsForMonth,summarizeReports,number} from './reporting.mjs?v=1.19.2';
 export const INSPECTION_POINTS=[['engine','Moteur et fluides'],['brakes','Freinage et sécurité'],['steering','Direction et suspension'],['electric','Électricité et éclairage'],['cabin','Habitacle et équipements'],['body','Carrosserie et dessous'],['road','Essai routier']];
 export const INSPECTION_STATES=['Non vérifié','Conforme','À surveiller','Travaux requis'];
 export const money=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&Number.isFinite(Number(v))?Math.round(Number(v)*100)/100:null;

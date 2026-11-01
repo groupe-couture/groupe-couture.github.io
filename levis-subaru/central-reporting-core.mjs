@@ -1,4 +1,4 @@
-import {periodsForMonth} from './reporting.mjs?v=1.19.1';
+import {periodsForMonth} from './reporting.mjs?v=1.19.2';
 export const reportingWeeks=periodsForMonth;
 export function reportDataForSelection(data,{kind,periodEnd}){
  if(kind!=='weekly')return data;
@@ -15,6 +15,12 @@ export const SECTIONS={
 };
 export const STATUS_LABELS={draft:'En préparation',validated:'Validé par le DG',submitted:'Soumis au groupe'};
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
+export function declaredPartsMargin(fields){
+ const f=(fields||[]).find(f=>/BRUT[\s\S]*%/i.test(f.label));if(!finite(f?.value))return null;
+ if(f.format==='PERCENT')return f.value*100;
+ return f.value>0&&f.value<1?null:f.value;
+}
+export function declaredPartsMarginData(fields){const reportedMargin=declaredPartsMargin(fields),raw=(fields||[]).find(f=>/BRUT[\s\S]*%/i.test(f.label));return {values:{reportedMargin},issues:finite(raw?.value)&&reportedMargin===null?['reportedMargin']:[]};}
 const copy=v=>structuredClone(v);
 const monetary=new Set(['retailVehicleProfit','financeProfit','wholesaleProfit','revenue','profit']);
 const total=(key,values)=>monetary.has(key)?Number(values.reduce((n,v)=>n+BigInt(Math.round(v*100)),0n))/100:values.reduce((a,b)=>a+b,0);
@@ -71,12 +77,14 @@ export function createCentralReporting(supabase){
   history:async(dealershipId)=>{
    const batches=await read(supabase.from('gc_history_imports').select('id,source_url,source_modified_at,summary,completed_at').eq('status','completed').order('completed_at',{ascending:false}).limit(1));
    const batch=batches[0];if(!batch)return {batch:null,records:[]};
-   const [records,service]=await Promise.all([
+   const [records,service,parts]=await Promise.all([
     readAll(()=>{let q=supabase.from('gc_history_records').select('dealership_id,section,kind,as_of,source_sheet_id,source_row,values:data->values,hasActual:data->hasActual,source').eq('import_id',batch.id).order('source_sheet_id').order('source_row').order('section');if(dealershipId)q=q.eq('dealership_id',dealershipId);return q;}),
-    readAll(()=>{let q=supabase.from('gc_history_service_metrics').select('source_sheet_id,source_row,values,issues').eq('import_id',batch.id).order('source_sheet_id').order('source_row');if(dealershipId)q=q.eq('dealership_id',dealershipId);return q;})
+    readAll(()=>{let q=supabase.from('gc_history_service_metrics').select('source_sheet_id,source_row,values,issues').eq('import_id',batch.id).order('source_sheet_id').order('source_row');if(dealershipId)q=q.eq('dealership_id',dealershipId);return q;}),
+    readAll(()=>{let q=supabase.from('gc_history_records').select('source_sheet_id,source_row,fields:data->fields').eq('import_id',batch.id).eq('section','piece:all').order('source_sheet_id').order('source_row');if(dealershipId)q=q.eq('dealership_id',dealershipId);return q;})
    ]);
    const extra=new Map(service.map(r=>[r.source_sheet_id+'|'+r.source_row,r]));
-   return {batch,records:records.map(({values,hasActual,...r})=>{const e=r.section==='service:all'?extra.get(r.source_sheet_id+'|'+r.source_row):null;return {...r,data:{values:{...values,...e?.values},hasActual,issues:e?.issues||[]}};})};
+   const margins=new Map(parts.map(r=>[r.source_sheet_id+'|'+r.source_row,declaredPartsMarginData(r.fields)]));
+   return {batch,records:records.map(({values,hasActual,...r})=>{const key=r.source_sheet_id+'|'+r.source_row,e=r.section==='service:all'?extra.get(key):r.section==='piece:all'?margins.get(key):null;return {...r,data:{values:{...values,...e?.values},hasActual,issues:e?.issues||[]}};})};
   },
   historyFields:(importId,sheetId,row)=>read(supabase.from('gc_history_records').select('section,fields:data->fields').eq('import_id',importId).eq('source_sheet_id',sheetId).eq('source_row',row)),
   periods:dealershipId=>{

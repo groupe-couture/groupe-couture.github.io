@@ -1,22 +1,22 @@
 import {createCentralReportingUI} from './central-reporting-ui.mjs';
 import {readAccessContext} from './access-context.mjs';
 import {canViewModule,canViewGroup} from './permissions.mjs';
-import {createBilling} from './billing-ui.mjs?v=1.19.1';
-import {createDossierService} from './dossier.mjs?v=1.19.1';
-import {createOperations} from './operations-ui.mjs?v=1.19.1';
-import {saleErrors} from './reporting.mjs?v=1.19.1';
-import {createModules} from './modules-ui.mjs?v=1.19.1';
-import {stampPreparation,preparationDateErrors} from './preparation-history.mjs?v=1.19.1';
-import {ROLES,parseRoster,draftErrors,newId,validEmail} from './invitations.mjs?v=1.19.1';
-import {urgentDelivery,reminderDelivery,deliveryReady} from './delivery.mjs?v=1.19.1';
-import {recordErrors} from './record-validation.mjs?v=1.19.1';
-import {preparationSummary} from './preparation-view.mjs?v=1.19.1';
-import {TEAM_VIEWS,ACCESS_FIELDS,SUBMENUS,canViewSubcategory,availableSubcategories,canViewTeam,availableTeamViews,canEditObjectives,canManageAccess} from './permissions.mjs?v=1.19.1';
-import {SECTIONS,departmentSummary} from './objectives.mjs?v=1.19.1';
-import {DEPARTMENTS,EMPLOYEES} from './employees.mjs?v=1.19.1';
-import {STEPS,objectiveSummary,stepsFor,STATES,today,dayKey,dateObj,age,complete,progress,counts,preparationQueue,defaultSteps,validate,esc} from './domain.mjs?v=1.19.1';
-import {supabaseConfig} from './supabase-config.js?v=1.19.1';
-import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.19.1';
+import {createBilling} from './billing-ui.mjs?v=1.19.2';
+import {createDossierService} from './dossier.mjs?v=1.19.2';
+import {createOperations} from './operations-ui.mjs?v=1.19.2';
+import {saleErrors} from './reporting.mjs?v=1.19.2';
+import {createModules} from './modules-ui.mjs?v=1.19.2';
+import {stampPreparation,preparationDateErrors} from './preparation-history.mjs?v=1.19.2';
+import {ROLES,parseRoster,draftErrors,newId,validEmail} from './invitations.mjs?v=1.19.2';
+import {urgentDelivery,reminderDelivery,deliveryReady} from './delivery.mjs?v=1.19.2';
+import {recordErrors} from './record-validation.mjs?v=1.19.2';
+import {preparationSummary} from './preparation-view.mjs?v=1.19.2';
+import {TEAM_VIEWS,ACCESS_FIELDS,SUBMENUS,canViewSubcategory,availableSubcategories,canViewTeam,availableTeamViews,canEditObjectives,canManageAccess} from './permissions.mjs?v=1.19.2';
+import {SECTIONS,departmentSummary} from './objectives.mjs?v=1.19.2';
+import {DEPARTMENTS,EMPLOYEES} from './employees.mjs?v=1.19.2';
+import {STEPS,objectiveSummary,stepsFor,STATES,today,dayKey,dateObj,age,complete,progress,counts,preparationQueue,defaultSteps,validate,esc} from './domain.mjs?v=1.19.2';
+import {supabaseConfig} from './supabase-config.js?v=1.19.2';
+import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.19.2';
 const $=s=>document.querySelector(s),demo=new URLSearchParams(location.search).get('demo')==='1';
 const selectedDealership=new URLSearchParams(location.search).get('concession')||'levis-subaru';
 let metricUnsubs=[],metricYear='',departmentData={},objectiveView='vente';
@@ -314,7 +314,7 @@ function applyDealerContext(scope){
  const m=scope.memberships.find(m=>m.dealership_id===selectedDealership);if(!m)throw Error('Votre compte n’a pas accès à cette concession.');
  const brand=document.querySelector('aside>.brand');brand.textContent=m.name;document.title=m.name+' · Groupe Couture';document.querySelector('main>header .eyebrow').textContent=m.name+' / OPÉRATIONS';
  if(!document.querySelector('#concessionPicker')){const label=document.createElement('label');label.className='mobile-nav';label.style.display='block';label.textContent='Concession';const pick=document.createElement('select');pick.id='concessionPicker';pick.setAttribute('aria-label','Choisir une concession autorisée');pick.innerHTML=scope.memberships.map(m=>'<option value="'+esc(m.dealership_id)+'">'+esc(m.name)+'</option>').join('');pick.value=selectedDealership;pick.onchange=()=>location.href='?concession='+encodeURIComponent(pick.value);label.append(pick);brand.after(label);}
- if(selectedDealership!=='levis-subaru'){for(const field of ['finance','driver'])$('#recordForm').elements[field].innerHTML='<option value="">Employés à compléter</option>';document.querySelector('main>footer').firstChild.textContent=m.name+' · Version 1.19.1 ';}
+ if(selectedDealership!=='levis-subaru'){for(const field of ['finance','driver'])$('#recordForm').elements[field].innerHTML='<option value="">Employés à compléter</option>';document.querySelector('main>footer').firstChild.textContent=m.name+' · Version 1.19.2 ';}
 }
 const central=createCentralReportingUI({state:()=>({profile,user,demo,sdk}),render,toast});
 const modules=createModules({state:()=>({profile,user,demo,sdk,db,tab,month:monthKey(),records,employees,goals,departmentData,objectiveView,teamView}),render,fail,toast,setMonth:m=>{calendarDate=dateObj(m+'-01');},navigate:(next,sub)=>{if(next==='group'){location.href='./groupe/';return;}modules.leave();tab=next;if(next==='settings'&&sub)objectiveView=sub;if(next==='team'&&sub)teamView=sub;filter='all';search='';render();},renderLegacySettings:renderSettings,getProducts:()=>operations.getProducts(),getWholesale:()=>operations.getWholesale(),operationsStatus:()=>operations.status(),renderSalesTools:view=>operations.renderSalesTools(view),selectedProducts:(ids,old)=>operations.selectedProducts(ids,old),saveSale:(sale,financials)=>dossierService.save({sale,financials}),prepareSale:(vehicle,sale)=>openRecord(vehicle.id,undefined,sale)});
