@@ -14,3 +14,5 @@
 .controls{flex-wrap:wrap}.controls>label:first-child{flex:1 1 280px}.controls>label:first-child select{max-width:100%}.department-tabs{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}#concessionReturn{display:inline-block;font-size:12px;color:var(--teal);margin-top:8px}#detailContent dl dt{overflow-wrap:anywhere}
 
 .pdf-bottom{flex-wrap:wrap}#pdfView{text-decoration:none;text-align:center}
+
+.entry-month{color:#087c72;font-weight:600}

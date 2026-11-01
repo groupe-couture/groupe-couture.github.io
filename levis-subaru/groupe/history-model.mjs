@@ -1,5 +1,6 @@
-import {sortGroupRows} from './dashboard-model.mjs?v=1.18.0';
-import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.18.0';
+import {sortGroupRows} from './dashboard-model.mjs?v=1.18.1';
+import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.18.1';
+import {groupStartMonth,outsideGroup,completionCounts} from './group-membership.mjs?v=1.18.1';
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
 const sum=vs=>vs.length&&vs.every(finite)?vs.reduce((a,b)=>a+b,0):null;
 const divide=(a,b,m=1)=>finite(a)&&finite(b)&&b>0?a/b*m:null;
@@ -24,15 +25,15 @@ export function defaultHistorySelection(records){
 export function historyDashboardRows(dealers,records,{kind='monthly_final',month='2026-10',periodEnd=null}={}){
  const end=kind==='month_to_date'?periodEnd:month+'-31',year=month.slice(0,4);
  return sortGroupRows(dealers).map(dealer=>{
-  const own=records.filter(r=>r.dealership_id===dealer.id),departments={};
-  const firstMonth=own.filter(r=>r.kind==='monthly_final'&&r.as_of.slice(0,4)===year).map(r=>r.as_of.slice(0,7)).sort()[0];
+  const start=groupStartMonth(dealer),excluded=outsideGroup(dealer,month),own=records.filter(r=>r.dealership_id===dealer.id&&(!start||r.as_of.slice(0,7)>=start)),departments={};
+  const firstMonth=start?start.slice(0,4)<year?year+'-01':start:own.filter(r=>r.kind==='monthly_final'&&r.as_of.slice(0,4)===year).map(r=>r.as_of.slice(0,7)).sort()[0];
   const expected=firstMonth?Array.from({length:Math.max(0,Number(month.slice(5))-Number(firstMonth.slice(5))+1)},(_,i)=>year+'-'+String(Number(firstMonth.slice(5))+i).padStart(2,'0')):[];
   for(const [id,def]of Object.entries(REPORT_DEPARTMENTS)){
    const candidates=own.filter(r=>r.section===def.section&&r.kind===(kind==='month_to_date'?'month_to_date':'monthly_final')&&
     (kind==='ytd'?r.as_of.slice(0,4)===year&&r.as_of.slice(0,7)<=month:kind==='month_to_date'?r.as_of===end:r.as_of.slice(0,7)===month));
    const selected=candidates.filter(r=>r.data.hasActual),last=selected.at(-1),v=last?.data.values||{},annual=kind==='ytd',values=key=>selected.map(r=>r.data.values[key]);
    const missingMonths=annual?expected.filter(m=>!selected.some(r=>r.as_of.slice(0,7)===m)):[];
-   const part={historical:true,hasOfficial:selected.length>0,missingMonths,sourceConfirmed:selected.length>0&&selected.every(r=>r.source.balance===true),
+   const part={historical:true,outsideGroup:excluded,hasOfficial:selected.length>0&&!excluded,missingMonths,sourceConfirmed:selected.length>0&&selected.every(r=>r.source.balance===true),
     fields:annual?[]:(last||candidates.at(-1))?.data.fields||[],source:(last||candidates.at(-1))?{...(last||candidates.at(-1)).source,sheetId:(last||candidates.at(-1)).source_sheet_id,row:(last||candidates.at(-1)).source_row,asOf:(last||candidates.at(-1)).as_of}:null};
    if(id==='vn'||id==='vo'){
     const inputs=selected.map(r=>r.data.values),stock=own.filter(r=>r.section===def.section&&r.kind==='month_to_date'&&r.as_of<=end&&finite(r.data.values.inventory)&&
@@ -53,13 +54,13 @@ export function historyDashboardRows(dealers,records,{kind='monthly_final',month
    part.partial=part.hasOfficial&&(missingMonths.length>0||(id==='vn'||id==='vo'?[part.units,part.vehicleAverage,part.financeAverage]:kind==='month_to_date'&&id==='service'?[part.advisors,part.openROs,part.technicians]:[part.revenue,part.profit]).some(x=>!finite(x)));
    departments[id]=part;
   }
-  return {...dealer,historical:true,status:'imported',hasOfficial:Object.values(departments).some(p=>p.hasOfficial),departments,
+  return {...dealer,historical:true,outsideGroup:excluded,status:excluded?'outside_group':'imported',hasOfficial:Object.values(departments).some(p=>p.hasOfficial),departments,
    direction:own.find(r=>r.section==='direction:all'&&r.kind===(kind==='month_to_date'?'month_to_date':'monthly_final')&&(kind==='month_to_date'?r.as_of===end:r.as_of.slice(0,7)===month))?.data.fields||[]};
  });
 }
 export function historyTotals(rows,id){
  const parts=rows.map(r=>r.departments[id]).filter(p=>p.hasOfficial),total=key=>sum(parts.map(p=>p[key])),inputs=parts.flatMap(p=>p.averageInputs||[]);
- const t={hasOfficial:parts.length>0,received:parts.length,dealers:rows.length};
+ const t={hasOfficial:parts.length>0,...completionCounts(rows,id)};
  for(const key of ['units','wholesaleUnits','inventory','previousSales','revenue','profit','hours','presence','clocked','advisors','openROs','technicians','wip'])t[key]=total(key);
  t.vehicleAverage=weightedReportedAverage(inputs,'vehicleAverage');t.financeAverage=weightedReportedAverage(inputs,'financeAverage');t.margin=divide(t.profit,t.revenue,100);
  const sameDate=new Set(parts.map(p=>p.stockAsOf)).size===1;
@@ -67,6 +68,6 @@ export function historyTotals(rows,id){
  return t;
 }
 export function historyNotes(id){return [
- 'Historique Google Sheets : chiffres importés, sans validation ni soumission automatique dans la plateforme. « Balance déclarée » reprend la case du fichier source.',
+ 'Historique importé, sans validation automatique. « Balance déclarée » reprend la case source. Les mois hors groupe sont complétés sans chiffres et exclus des résultats.',
  id==='vn'||id==='vo'?'Moyennes déclarées au détail, F&I séparé; wholesale exclu des moyennes. Groupe et cumul : moyennes pondérées par les livraisons, à partir des moyennes arrondies du fichier. Aucun profit total de détail reconstitué.':'Les champs absents ou en erreur restent « — ». Les BR ouverts et les effectifs sont des photos, jamais des cumuls.',
  id==='vn'||id==='vo'?'Inventaire VO : somme des quatre tranches d’âge connues. Photo datée ÷ livraisons du mois précédent. Astérisque (*) : référence non balancée à confirmer. Aucun inventaire VN fourni.':'Le cumul utilise les mois finaux seulement. Les suivis du mois à date ne sont jamais additionnés. Les cellules complémentaires restent consultables dans « Voir ».']}

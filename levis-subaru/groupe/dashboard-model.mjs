@@ -1,4 +1,5 @@
-import {latestOfficialSubmissions,officialYearToDate,reportingWeeks} from './reporting.mjs?v=1.18.0';
+import {latestOfficialSubmissions,officialYearToDate,reportingWeeks} from './reporting.mjs?v=1.18.1';
+import {outsideGroup,inGroupSubmissions,joinedMonths} from './group-membership.mjs?v=1.18.1';
 
 export const REPORT_LABELS={weekly:'Hebdomadaire',monthly_final:'Mois final',ytd:'Cumul annuel',month_to_date:'Mois à date'};
 export const STATES={draft:'En préparation',validated:'Validé par le DG',submitted:'Soumis au groupe'};
@@ -34,12 +35,14 @@ export function demoReportSet(dealers,{kind='weekly',month='2026-10',periodEnd=n
  return {periods,submissions};
 }
 export function dashboardRows(dealers,{periods,submissions},{kind='weekly',year=2026,month=10}={}){
+ submissions=inGroupSubmissions(submissions,dealers);
  const selectedMonth=String(year)+'-'+String(month).padStart(2,'0');
  const official=latestOfficialSubmissions(submissions,{kind:kind==='ytd'?'monthly_final':kind,year});
- const annual=kind==='ytd'?officialYearToDate(submissions,year,{throughMonth:month}):[];
+ const annual=kind==='ytd'?officialYearToDate(submissions,year,{throughMonth:month,joinedMonths:joinedMonths(dealers)}):[];
  return sortGroupRows(dealers).map(d=>{
   const period=periods.filter(p=>p.dealership_id===d.id&&(!p.kind||p.kind===(kind==='ytd'?'monthly_final':kind))&&(!(p.endDate||p.end_date)||(p.endDate||p.end_date).slice(0,7)===selectedMonth)).sort((a,b)=>(a.endDate||a.end_date||'').localeCompare(b.endDate||b.end_date||'')).at(-1);
   const row={...d,periodId:period?.id??null,periodEnd:period?.endDate||period?.end_date||null,status:period?.status||'missing',completed:period?.completed||0,total:period?.total||5,balance:period?.balanceWithStatement===true,correcting:period?.correcting===true,hasOfficial:false};
+  row.outsideGroup=outsideGroup(d,selectedMonth);if(row.outsideGroup){row.status='outside_group';row.total=d.required_sections?.length||4;row.completed=row.total;}
   let values;
   if(kind==='ytd'){
    const groups=annual.filter(g=>g.dealershipId===d.id);if(groups.length)values=Object.fromEntries(groups.map(g=>[g.section,g.values]));
@@ -55,6 +58,6 @@ export function dashboardRows(dealers,{periods,submissions},{kind='weekly',year=
  });
 }
 export function dashboardTotals(rows){
- const received=rows.filter(r=>r.hasOfficial);
- return {received:received.length,dealers:rows.length,pending:rows.length-received.length,vn:sum(received,'vn'),vo:sum(received,'vo'),wholesale:sum(received,'wholesale'),vehicleProfit:sum(received,'vehicleProfit'),financeProfit:sum(received,'financeProfit'),totalProfit:sum(received,'totalProfit'),service:sum(received,'service'),parts:sum(received,'parts')};
+ const received=rows.filter(r=>r.hasOfficial&&!r.outsideGroup),exempt=rows.filter(r=>r.outsideGroup).length;
+ return {received:received.length,dealers:rows.length,exempt,completed:received.length+exempt,pending:rows.length-received.length-exempt,vn:sum(received,'vn'),vo:sum(received,'vo'),wholesale:sum(received,'wholesale'),vehicleProfit:sum(received,'vehicleProfit'),financeProfit:sum(received,'financeProfit'),totalProfit:sum(received,'totalProfit'),service:sum(received,'service'),parts:sum(received,'parts')};
 }

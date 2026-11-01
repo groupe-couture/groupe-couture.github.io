@@ -1,9 +1,10 @@
-import {CONCESSIONS} from '../registry.mjs?v=1.18.0';
-import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.18.0';
-import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.18.0';
-import {generateGroupPdf} from './group-pdf.mjs?v=1.18.0';
-import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.18.0';
-import {HISTORY_DEPARTMENTS,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection} from './history-model.mjs?v=1.18.0';
+import {groupEntryLabel} from './group-membership.mjs?v=1.18.1';
+import {CONCESSIONS} from '../registry.mjs?v=1.18.1';
+import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.18.1';
+import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.18.1';
+import {generateGroupPdf} from './group-pdf.mjs?v=1.18.1';
+import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.18.1';
+import {HISTORY_DEPARTMENTS,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection} from './history-model.mjs?v=1.18.1';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const preciseNumber=new Intl.NumberFormat('fr-CA',{maximumFractionDigits:10});
 const format=formatReportValue,live=document.documentElement.dataset.mode==='live';
@@ -16,16 +17,17 @@ const monthLabel=m=>m?new Date(m+'-15T12:00:00').toLocaleDateString('fr-CA',{mon
 const metric=(label,value,detail)=>'<article class="kpi"><span>'+label+'</span><strong>'+value+'</strong><small>'+detail+'</small></article>';
 function renderCards(t){
  if(department==='vn'||department==='vo'){
-  const sales=metric(department==='vn'?'Ventes neuf':'Ventes au détail',format(t.units,'count'),department==='vo'?'Wholesale : '+format(t.wholesaleUnits,'count')+' unités':(historical()?'Départements importés : ':'Départements soumis : ')+t.received+' / '+t.dealers);
-  const stock='<article class="kpi stock-kpi"><span>Véhicules en inventaire</span><div class="stock-pair"><strong>'+format(t.inventory,'count')+'</strong><div><b>'+format(t.coverage,'ratio')+'</b><small>mois d’inventaire</small></div></div><small>'+(t.coverage===null?esc(t.coverageReason):'Inventaire ÷ ventes détail du mois précédent'+(historical()&&!t.referenceConfirmed?' · référence à confirmer':''))+'</small></article>';
+  const sales=metric(department==='vn'?'Ventes neuf':'Ventes au détail',format(t.units,'count'),department==='vo'?'Wholesale : '+format(t.wholesaleUnits,'count')+' unités':(historical()?'Départements importés : ':'Départements soumis : ')+(t.expected?t.received+' / '+t.expected:'aucun département attendu'));
+  const stock='<article class="kpi stock-kpi"><span>Véhicules en inventaire</span><div class="stock-pair"><strong>'+format(t.inventory,'count')+'</strong><div><b>'+format(t.coverage,'ratio')+'</b><small>mois d’inventaire</small></div></div><small>'+(t.expected===0?'Sans objet · hors groupe':t.coverage===null?esc(t.coverageReason):'Inventaire ÷ ventes détail du mois précédent'+(historical()&&!t.referenceConfirmed?' · référence à confirmer':''))+'</small></article>';
   return sales+metric('Moyenne profit véhicule',format(t.vehicleAverage,'money'),historical()?'Moyennes déclarées au détail, pondérées':department==='vo'?'Détail + wholesale, après frais':'Profit véhicule ÷ ventes au détail')+metric('Moyenne profit F&I',format(t.financeAverage,'money'),historical()?'Moyennes F&I déclarées, pondérées':'Profits F&I ÷ ventes au détail')+stock;
  }
  if(department==='service'&&historical())return metric('Chiffre d’affaires',format(t.revenue,'money'),'Main-d’œuvre · mois finaux')+metric('Profit brut',format(t.profit,'money'),'Montant déclaré au fichier')+metric('BR ouverts',format(t.openROs,'count'),'Photo à la date du rapport')+metric('Techniciens',format(t.technicians,'count'),'Effectif déclaré');
  if(department==='service')return metric('Heures vendues',format(t.hours,'decimal'),'Heures facturées des rapports soumis')+metric('Chiffre d’affaires',format(t.revenue,'money'),'Main-d’œuvre du service')+metric('Productivité',format(t.productivity,'percent'),'Heures pointées ÷ présence')+metric('Efficacité',format(t.efficiency,'percent'),'Heures vendues ÷ heures pointées');
- return metric('Chiffre d’affaires',format(t.revenue,'money'),historical()?'Départements pièces importés':'Départements pièces soumis')+metric('Profit brut',format(t.profit,'money'),'Résultats de la période')+metric('Marge brute',format(t.margin,'percent'),'Profit brut ÷ chiffre d’affaires')+(historical()?metric('Données disponibles',t.received+' / '+t.dealers,'Départements avec des valeurs source'):metric('Factures',format(t.invoices,'count'),'Nombre de factures'));
+ return metric('Chiffre d’affaires',format(t.revenue,'money'),historical()?'Départements pièces importés':'Départements pièces soumis')+metric('Profit brut',format(t.profit,'money'),'Résultats de la période')+metric('Marge brute',format(t.margin,'percent'),'Profit brut ÷ chiffre d’affaires')+(historical()?metric('Données disponibles',t.received+' / '+t.expected,'Départements avec des valeurs source'):metric('Factures',format(t.invoices,'count'),'Nombre de factures'));
 }
 function qualityNote(part){return part.missingMonths?.length?part.missingMonths.length+' mois manquant(s) : '+part.missingMonths.map(monthLabel).join(', '):part.partial?'Données incomplètes dans '+(historical()?'le fichier source':'la version soumise'):'';}
 function cells(part){return definitions()[department].columns.map(([key,,type])=>{
+ if(part.outsideGroup)return '<td class="num">—</td>';
  let detail='';
  if(key==='coverage')detail=part.coverage===null?part.coverageReason:format(part.inventory,'count')+' ÷ '+format(part.previousSales,'count')+' · ventes '+monthLabel(part.referenceMonth)+(historical()&&!part.referenceConfirmed?' · à confirmer':'');
  if(key==='inventory'&&part.stockMonth)detail='Photo : '+(part.stockAsOf||monthLabel(part.stockMonth));
@@ -37,23 +39,23 @@ function render(){
  $('#dataSource').closest('label').hidden=!live||ownView;
  $('#weekControl').firstChild.textContent=historical()?'Situation ':'Semaine ';
  $('#weekControl').hidden=!['weekly','month_to_date'].includes(kind);
- $('#reportCounts').textContent=received+' / '+current.length+' départements '+(historical()?'importés':'soumis au groupe')+' · '+def.label;
+ $('#reportCounts').textContent=t.completed+' / '+current.length+' départements complétés · '+received+' '+(historical()?'importés':'soumis')+(t.exempt?' · '+t.exempt+' hors groupe':'')+' · '+def.label;
  document.querySelector('footer span:last-child').textContent=historical()?'Historique Google Sheets 2026 · lecture seule':'Saisie directeurs → validation DG → soumission au groupe';
  $('#coverageRule').textContent=historical()?'Historique importé en lecture seule. Les cases de balance proviennent du fichier; elles ne constituent pas une validation dans la plateforme. Le cumul additionne les mois finaux seulement.':'Seules les versions soumises entrent dans les résultats. Le cumul annuel utilise les mois finaux confirmés.';
  document.querySelector('[data-kind="weekly"]').hidden=historical();document.querySelector('[data-kind="month_to_date"]').hidden=!historical();
  document.querySelector('[data-section="submissions"]').hidden=historical();
- $('#scope').options[1].textContent=historical()?'Résultats importés':'Rapports soumis';$('#scope').options[2].textContent=historical()?'Résultats absents':'À recevoir';
- $('#coverageText').textContent=(current.length-received)+' à recevoir · '+(section==='submissions'?'suivi des soumissions':'vue consolidée');
- $('#coverageBar').style.width=(current.length?100*received/current.length:0)+'%';
+ $('#scope').options[1].textContent=historical()?'Complétés / importés':'Complétés / soumis';$('#scope').options[2].textContent='À compléter';
+ $('#coverageText').textContent=t.pending+' à compléter · '+(section==='submissions'?'suivi des soumissions':'vue consolidée');
+ $('#coverageBar').style.width=(current.length?100*t.completed/current.length:0)+'%';
  $('#cards').innerHTML=renderCards(t);$('#cards').hidden=section==='submissions';$('#sectionTitle').textContent=(section==='submissions'?'Suivi des soumissions · ':'')+def.label;$('#departmentPanel').setAttribute('aria-labelledby','tab-'+department);
  $('#tableHead').innerHTML=section==='submissions'?'<tr><th>Concession</th><th>Départements complétés</th><th>Validation DG</th><th>Version officielle</th><th>État</th><th></th></tr>':'<tr><th>Concession</th>'+def.columns.map(([,label])=>'<th class="num">'+esc(label)+'</th>').join('')+'<th>Rapport</th><th></th></tr>';
  $('#tableBody').innerHTML=current.map(row=>{
   const part=row.departments[department];
-  const note=qualityNote(part)||(historical()?part.hasOfficial?'Source : '+(part.source?.sheetTitle||'mois finaux'):'Aucun résultat fourni pour cette période':row.correcting&&part.hasOfficial?'Correction en attente · version officielle conservée':part.hasOfficial?kind==='ytd'?'Mois finaux soumis seulement':'Version soumise':'Données non soumises');
-  const workflow='<td>'+row.completed+' / '+row.total+'</td><td>'+(row.correcting?'À revalider':row.status==='submitted'||row.status==='validated'?'Validé par le DG':'À valider')+'</td><td>'+(part.hasOfficial?'Disponible':'À recevoir')+'</td>';
-  return '<tr data-dealer="'+esc(row.id)+'" tabindex="0"><td><strong>'+esc(row.name)+'</strong><small>'+esc(note)+'</small></td>'+(section==='submissions'?workflow:cells(part))+'<td><span class="state '+(part.hasOfficial&&!part.partial&&!row.correcting?'green':row.status==='validated'?'blue':'amber')+'">'+esc(reportStateLabel(row,department))+'</span>'+(kind==='monthly_final'&&part.hasOfficial&&row.balance?'<small class="balanced">✓ Balance avec le bilan</small>':'')+'</td><td><button class="open-report" aria-label="Voir '+esc(def.label)+' de '+esc(row.name)+'">Voir →</button></td></tr>';
+  const note=part.outsideGroup?'Période complétée · aucune saisie requise':qualityNote(part)||(historical()?part.hasOfficial?'Source : '+(part.source?.sheetTitle||'mois finaux'):'Aucun résultat fourni pour cette période':row.correcting&&part.hasOfficial?'Correction en attente · version officielle conservée':part.hasOfficial?kind==='ytd'?'Mois finaux soumis seulement':'Version soumise':'Données non soumises');
+  const workflow=part.outsideGroup?'<td>'+row.total+' / '+row.total+'</td><td>Non requise · hors groupe</td><td>Sans objet</td>':'<td>'+row.completed+' / '+row.total+'</td><td>'+(row.correcting?'À revalider':row.status==='submitted'||row.status==='validated'?'Validé par le DG':'À valider')+'</td><td>'+(part.hasOfficial?'Disponible':'À recevoir')+'</td>';
+  return '<tr data-dealer="'+esc(row.id)+'" tabindex="0"><td><strong>'+esc(row.name)+'</strong>'+(groupEntryLabel(row)?'<small class="entry-month">'+esc(groupEntryLabel(row))+'</small>':'')+'<small>'+esc(note)+'</small></td>'+(section==='submissions'?workflow:cells(part))+'<td><span class="state '+(part.outsideGroup||part.hasOfficial&&!part.partial&&!row.correcting?'green':row.status==='validated'?'blue':'amber')+'">'+esc(reportStateLabel(row,department))+'</span>'+(kind==='monthly_final'&&part.hasOfficial&&row.balance?'<small class="balanced">✓ Balance avec le bilan</small>':'')+'</td><td><button class="open-report" aria-label="Voir '+esc(def.label)+' de '+esc(row.name)+'">Voir →</button></td></tr>';
  }).join('')||'<tr><td colspan="'+(section==='submissions'?6:def.columns.length+3)+'">Aucune concession dans cette sélection.</td></tr>';
- $('#tableFoot').innerHTML=section==='submissions'?'<tr><th>Réception du département</th><td colspan="5">'+t.received+' / '+t.dealers+' · '+esc(def.label)+'</td></tr>':'<tr><th>'+(historical()?'Groupe importé':'Groupe soumis')+'</th>'+def.columns.map(([key,,type])=>'<th class="num">'+format(t[key],type)+'</th>').join('')+'<td>'+t.received+' / '+t.dealers+'</td><td></td></tr>';
+ $('#tableFoot').innerHTML=section==='submissions'?'<tr><th>Réception du département</th><td colspan="5">'+t.completed+' / '+t.dealers+' · '+esc(def.label)+'</td></tr>':'<tr><th>'+(historical()?'Groupe importé':'Groupe soumis')+'</th>'+def.columns.map(([key,,type])=>'<th class="num">'+format(t[key],type)+'</th>').join('')+'<td>'+t.completed+' / '+t.dealers+'</td><td></td></tr>';
  $('#calculationNotes').innerHTML=(historical()?historyNotes:departmentNotes)(department).map(n=>'<p>'+esc(n)+'</p>').join('');
  document.querySelectorAll('[data-dealer]').forEach(el=>{el.onclick=()=>openReport(current.find(r=>r.id===el.dataset.dealer));el.onkeydown=e=>{if(e.target===el&&['Enter',' '].includes(e.key)){e.preventDefault();el.click();}};});
  document.querySelectorAll('[data-kind]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.kind===kind));
@@ -64,6 +66,7 @@ function render(){
 function sourceFields(fields){return '<dl>'+fields.map(f=>'<dt>'+esc(f.label)+' <small>'+esc(f.cell)+'</small></dt><dd>'+esc(f.value&&typeof f.value==='object'?'Erreur '+f.value.error:typeof f.value==='number'?(f.format==='CURRENCY'?format(f.value,'money'):preciseNumber.format(f.format==='PERCENT'?f.value*100:f.value)+(f.format==='PERCENT'?' %':'')):f.value??'—')+'</dd>').join('')+'</dl>';}
 async function openReport(row){
  const part=row.departments[department],def=definitions()[department];$('#detailTitle').textContent=row.name+' · '+def.label;
+ if(part.outsideGroup){$('#detailContent').innerHTML='<p class="attention">Complété — hors groupe</p><p>'+esc(groupEntryLabel(row))+'.</p><p>Cette période précède son intégration. Aucune saisie requise; aucun chiffre ajouté aux résultats ou aux moyennes du groupe.</p>';$('#detail').showModal();return;}
  if(historical()){
   const token=++detailGeneration;
   if(part.source&&liveData.history.readFields&&!part.fieldsLoaded){
@@ -101,7 +104,7 @@ $('#export').onclick=()=>{
 updateWeeks();
 if(live){
  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');kind='monthly_final';$('#month').value=month;updateWeeks();
- import('./live-dashboard.mjs?v=1.18.0').then(({connectLiveDashboard})=>connectLiveDashboard({
+ import('./live-dashboard.mjs?v=1.18.1').then(({connectLiveDashboard})=>connectLiveDashboard({
  onClear(){detailGeneration++;sourceChosen=false;liveData={periods:[],submissions:[],history:{batch:null,records:[]}};cachedKey=null;cachedRows=null;clearReadyFile();$('#cards').innerHTML='';$('#tableBody').innerHTML='';$('#tableFoot').innerHTML='';document.querySelectorAll('dialog[open]').forEach(d=>d.close());},
  onData(data){
   dealers=data.dealerships;liveData=data;ownView=data.ownView;allowedDepartments=data.allowedDepartments;

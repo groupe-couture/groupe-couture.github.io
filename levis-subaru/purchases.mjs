@@ -1,5 +1,5 @@
-import {today,esc} from './domain.mjs?v=1.18.0';
-import {validDate} from './operations.mjs?v=1.18.0';
+import {today,esc} from './domain.mjs?v=1.18.1';
+import {validDate} from './operations.mjs?v=1.18.1';
 
 export const DEALER={name:'Lévis Subaru',legalName:'3953-1282 Québec inc.',address:'5085 rue Christophe-Colomb, Lévis, QC, G6V 8Y7',phone:'418-833-1960',permit:'2108583-1'};
 export const PURCHASE_TAX_MODES={equity:'Sur l’équité (valeur − solde) · modèle Excel',vehicle:'Sur la valeur du véhicule',none:'Aucune taxe à verser au vendeur',manual:'Montants de taxes saisis'};

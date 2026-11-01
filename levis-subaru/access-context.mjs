@@ -15,5 +15,5 @@ export function accessProfile(context,dealershipId,user={}){
  department:m.department||sections[0]?.split(':')[0]||null,
  name:m.display_name||user.email||'Utilisateur',poste:m.poste||'',
  dealershipId,dealershipName:m.name,canReadGroup:context.canReadGroup===true,
- requiredSections:m.required_sections||[],reportingEnabled:m.reporting_enabled===true};
+ joinedGroupMonth:m.joined_group_month||null,requiredSections:m.required_sections||[],reportingEnabled:m.reporting_enabled===true};
 }

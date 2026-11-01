@@ -1,4 +1,4 @@
-import {periodsForMonth} from '../reporting.mjs?v=1.18.0';
+import {periodsForMonth} from '../reporting.mjs?v=1.18.1';
 export const reportingWeeks=periodsForMonth;
 export function reportDataForSelection(data,{kind,periodEnd}){
  if(kind!=='weekly')return data;
@@ -67,7 +67,7 @@ export function createCentralReporting(supabase){
   progress:()=>readAll(()=>supabase.from('gc_department_reports').select('period_id,section,ready').order('period_id').order('section')),
   myMemberships:()=>read(supabase.from('gc_memberships').select('*')),
   myGroupAccess:()=>read(supabase.from('gc_group_readers').select('user_id,active')),
-  dealerships:()=>read(supabase.from('gc_dealerships').select('id,name,required_sections,reporting_enabled,historical_only').order('name')),
+  dealerships:()=>read(supabase.from('gc_dealerships').select('id,name,required_sections,reporting_enabled,historical_only,joined_group_month').order('name')),
   history:async(dealershipId)=>{
    const batches=await read(supabase.from('gc_history_imports').select('id,source_url,source_modified_at,summary,completed_at').eq('status','completed').order('completed_at',{ascending:false}).limit(1));
    const batch=batches[0];if(!batch)return {batch:null,records:[]};
@@ -120,10 +120,10 @@ export function latestOfficialSubmissions(submissions,{kind=null,year=null}={}){
  return [...latest.values()].sort((a,b)=>a.snapshot.endDate.localeCompare(b.snapshot.endDate)||a.dealership_id.localeCompare(b.dealership_id));
 }
 
-export function officialYearToDate(submissions,year,{throughMonth=12}={}){
+export function officialYearToDate(submissions,year,{throughMonth=12,joinedMonths={}}={}){
  if(!/^\d{4}$/.test(String(year))||!Number.isInteger(throughMonth)||throughMonth<1||throughMonth>12)throw Error('Année ou mois invalide.');
  const rows=latestOfficialSubmissions(submissions,{kind:'monthly_final',year})
-  .filter(r=>Number(r.snapshot.endDate.slice(5,7))<=throughMonth);
+  .filter(r=>Number(r.snapshot.endDate.slice(5,7))<=throughMonth&&(!joinedMonths[r.dealership_id]||r.snapshot.endDate.slice(0,7)>=joinedMonths[r.dealership_id]));
  const grouped=new Map();
  for(const row of rows)for(const [section,report]of Object.entries(row.snapshot.sections||{})){
   if(!SECTIONS[section])continue;
@@ -152,7 +152,7 @@ export function officialYearToDate(submissions,year,{throughMonth=12}={}){
     v.efficiency=v.clocked>0&&finite(v.hours)?100*v.hours/v.clocked:null;
    }
   }
-  g.missingMonths=Array.from({length:throughMonth},(_,i)=>String(year)+'-'+String(i+1).padStart(2,'0')).filter(m=>!g.months.includes(m));
+  g.missingMonths=Array.from({length:throughMonth},(_,i)=>String(year)+'-'+String(i+1).padStart(2,'0')).filter(m=>(!joinedMonths[g.dealershipId]||m>=joinedMonths[g.dealershipId])&&!g.months.includes(m));
   g.partial=g.missingMonths.length>0||SECTIONS[g.section].fields.some(k=>!finite(v[k]));
   delete g.sourceRows;
  }

@@ -1,8 +1,9 @@
-import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.18.0';
-import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.0';
-import {reportingPeriod} from './reporting.mjs?v=1.18.0';
-import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.18.0';
-import {HISTORY_DEPARTMENTS,historyTotals,historyNotes} from './history-model.mjs?v=1.18.0';
+import {groupEntryLabel} from './group-membership.mjs?v=1.18.1';
+import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.18.1';
+import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.18.1';
+import {reportingPeriod} from './reporting.mjs?v=1.18.1';
+import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.18.1';
+import {HISTORY_DEPARTMENTS,historyTotals,historyNotes} from './history-model.mjs?v=1.18.1';
 const WINANSI={8364:128,8218:130,402:131,8222:132,8230:133,8224:134,8225:135,710:136,8240:137,352:138,8249:139,338:140,381:142,8216:145,8217:146,8220:147,8221:148,8226:149,8211:150,8212:151,732:152,8482:153,353:154,8250:155,339:156,382:158,376:159};
 const normalize=value=>String(value??'').replace(/[\u00a0\u202f\t]/g,' ').replace(/[\r\n]+/g,' ').replace(/→/g,' > ').replace(/✓/g,'OK');
 const code=char=>char.charCodeAt(0)<256?char.charCodeAt(0):WINANSI[char.charCodeAt(0)]??63;
@@ -37,7 +38,7 @@ function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulate
  page.rect(M,H-101,inner,21,[1,.956,.85]);page.text(historical?'HISTORIQUE GOOGLE SHEETS - Import en lecture seule. Balance déclarée au fichier, sans validation DG automatique.':simulated?'DONNÉES SIMULÉES - Aperçu de préparation. Aucun résultat réel raccordé.':'RAPPORTS SOUMIS AU GROUPE - Versions officielles conservées sur le serveur.',M+9,H-94,{size:8,bold:true,color:[.48,.34,.10]});
  const scopeLabel={all:'Toutes les concessions',received:historical?'Résultats importés':'Rapports soumis',pending:historical?'Résultats absents':'À recevoir'}[scope]||'Toutes les concessions';
  const filter=scopeLabel+(search?' · Recherche : '+search:'');page.text(fitLabel(filter,inner*.52,8.2),M,H-117,{size:8.2,color:MUTED});
- const totals=(historical?historyTotals:departmentTotals)(allRows,id);page.text(allRows.length+' concessions affichées · '+totals.received+' départements '+(historical?'importés':'soumis')+(totalParts>1?' · Feuillet '+part+'/'+totalParts:''),W-M,H-117,{size:8.2,color:MUTED,right:true});
+ const totals=(historical?historyTotals:departmentTotals)(allRows,id);page.text(allRows.length+' concessions affichées · '+totals.completed+' complétés'+(totals.exempt?' · '+totals.exempt+' hors groupe':'')+(totalParts>1?' · Feuillet '+part+'/'+totalParts:''),W-M,H-117,{size:8.2,color:MUTED,right:true});
  const columns=[{key:'name',label:'Concession',format:'text',weight:146},...def.columns.map(([key,label,format,weight])=>({key,label,format,weight})),{key:'status',label:'État du rapport',format:'text',weight:99}];
  const totalWeight=columns.reduce((n,c)=>n+c.weight,0);let x=M;
  for(const c of columns){c.x=x;c.width=inner*c.weight/totalWeight;x+=c.width;}
@@ -50,7 +51,7 @@ function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulate
   if(i%2===0)page.rect(M,y-rowH,inner,rowH,[.972,.980,.985]);
   const values=row.departments[id];
   for(const col of columns){
-   const raw=col.key==='name'?row.name:col.key==='status'?state(row,id):formatReportValue(values[col.key],col.format);
+   const raw=col.key==='name'?row.name+(groupEntryLabel(row)?' · '+groupEntryLabel(row):''):col.key==='status'?state(row,id):formatReportValue(values[col.key],col.format);
    if(col.format==='text'){
     const lines=wrap(raw,col.width-10,8.5,col.key==='name');
     lines.slice(0,2).forEach((line,n)=>page.text(fitLabel(line,col.width-10,lines.length>1?7:8.5,col.key==='name'),col.x+5,y-(lines.length>1?6.5+n*7.2:11.5),{size:lines.length>1?7:8.5,bold:col.key==='name',color:col.key==='status'?(values.hasOfficial?TEAL:MUTED):INK}));
@@ -63,7 +64,7 @@ function renderSheet({rows,allRows,id,kind,month,scope,search,periodEnd,simulate
   page.line(M,y-rowH,W-M,y-rowH);y-=rowH;
  });
  page.rect(M,y-23,inner,23,[.884,.938,.944]);
- for(const col of columns){const value=col.key==='name'?(historical?'Groupe importé':'Groupe soumis'):col.key==='status'?totals.received+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
+ for(const col of columns){const value=col.key==='name'?(historical?'Groupe importé':'Groupe soumis'):col.key==='status'?totals.completed+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
  let noteY=y-36;
  for(const note of (historical?historyNotes:departmentNotes)(id))for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
  page.line(M,30,W-M,30);const stamp=new Date(generatedAt).toLocaleString('fr-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
