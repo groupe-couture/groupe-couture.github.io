@@ -1,5 +1,5 @@
-import {outsideGroup,groupEntryLabel} from './group-membership.mjs?v=1.20.0';
-import {createCentralReporting,reportingWeeks,SECTIONS,STATUS_LABELS,draftFromExistingMetrics} from './central-reporting-core.mjs?v=1.20.0';
+import {outsideGroup,groupEntryLabel} from './group-membership.mjs?v=1.20.1';
+import {createCentralReporting,reportingWeeks,SECTIONS,STATUS_LABELS,draftFromExistingMetrics} from './central-reporting-core.mjs?v=1.20.1';
 import {canViewModule} from './permissions.mjs';
 import {esc,today} from './domain.mjs';
 export const FIELD_LABELS={retailUnits:'Ventes au détail',retailVehicleProfit:'Profit total véhicules au détail ($)',financeProfit:'Profit total F&I ($)',wholesaleUnits:'Ventes wholesale',wholesaleProfit:'Profit total wholesale net ($)',inventory:'Véhicules en inventaire',walk:'Clients en salle',leads:'Demandes Internet',phone:'Appels',hours:'Heures vendues',revenue:'Chiffre d’affaires ($)',profit:'Profit brut ($)',ros:'Bons de réparation',presence:'Heures de présence',clocked:'Heures pointées',invoices:'Factures',prepared:'Véhicules préparés',waiting:'En attente',rework:'Reprises'};

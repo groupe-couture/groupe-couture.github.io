@@ -1,6 +1,7 @@
-import {supabaseConfig} from '../supabase-config.js?v=1.20.0';
-import {readAccessContext} from '../access-context.mjs?v=1.20.0';
-import {createCentralReporting} from './reporting.mjs?v=1.20.0';
+import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.1';
+import {supabaseConfig} from '../supabase-config.js?v=1.20.1';
+import {readAccessContext} from '../access-context.mjs?v=1.20.1';
+import {createCentralReporting} from './reporting.mjs?v=1.20.1';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function normalizeReportPeriods(periods,progress,submissions){
  return periods.map(p=>({...p,endDate:p.end_date,total:p.required_sections.length,
@@ -9,6 +10,7 @@ export function normalizeReportPeriods(periods,progress,submissions){
  correcting:p.status!=='submitted'&&submissions.some(s=>s.period_id===p.id)}));
 }
 export async function connectLiveDashboard({onData,onClear,onReload=async()=>false}){
+ const passwordTarget=passwordReturnTarget(location.href);if(passwordTarget){location.replace(passwordTarget);return;}
  const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm');
  const client=createClient(supabaseConfig.url,supabaseConfig.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}),api=createCentralReporting(client);
  let generation=0,pending=false,authenticated=false,historyCache=null,scopeKey='';

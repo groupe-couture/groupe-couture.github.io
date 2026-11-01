@@ -1,25 +1,26 @@
-import {applyPlatformBrand} from './branding.mjs?v=1.20.0';
-import {createCentralReportingUI} from './central-reporting-ui.mjs?v=1.20.0';
-import {readAccessContext} from './access-context.mjs?v=1.20.0';
-import {createCentralReporting} from './central-reporting-core.mjs?v=1.20.0';
-import {workspaceNavigation,platformDestination} from './platform-navigation.mjs?v=1.20.0';
-import {canViewModule,canViewGroup} from './permissions.mjs?v=1.20.0';
-import {createBilling} from './billing-ui.mjs?v=1.20.0';
-import {createDossierService} from './dossier.mjs?v=1.20.0';
-import {createOperations} from './operations-ui.mjs?v=1.20.0';
-import {saleErrors} from './reporting.mjs?v=1.20.0';
-import {createModules} from './modules-ui.mjs?v=1.20.0';
-import {stampPreparation,preparationDateErrors} from './preparation-history.mjs?v=1.20.0';
-import {ROLES,parseRoster,draftErrors,newId,validEmail} from './invitations.mjs?v=1.20.0';
-import {urgentDelivery,reminderDelivery,deliveryReady} from './delivery.mjs?v=1.20.0';
-import {recordErrors} from './record-validation.mjs?v=1.20.0';
-import {preparationSummary} from './preparation-view.mjs?v=1.20.0';
-import {TEAM_VIEWS,ACCESS_FIELDS,SUBMENUS,canViewSubcategory,availableSubcategories,canViewTeam,availableTeamViews,canEditObjectives,canManageAccess} from './permissions.mjs?v=1.20.0';
-import {SECTIONS,departmentSummary} from './objectives.mjs?v=1.20.0';
-import {DEPARTMENTS,EMPLOYEES} from './employees.mjs?v=1.20.0';
-import {STEPS,objectiveSummary,stepsFor,STATES,today,dayKey,dateObj,age,complete,progress,counts,preparationQueue,defaultSteps,validate,esc} from './domain.mjs?v=1.20.0';
-import {supabaseConfig} from './supabase-config.js?v=1.20.0';
-import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.20.0';
+import {createPasswordFlow,cleanPasswordUrl,RECOVERY_EXPIRED} from './password-flow.mjs?v=1.20.1';
+import {applyPlatformBrand} from './branding.mjs?v=1.20.1';
+import {createCentralReportingUI} from './central-reporting-ui.mjs?v=1.20.1';
+import {readAccessContext} from './access-context.mjs?v=1.20.1';
+import {createCentralReporting} from './central-reporting-core.mjs?v=1.20.1';
+import {workspaceNavigation,platformDestination} from './platform-navigation.mjs?v=1.20.1';
+import {canViewModule,canViewGroup} from './permissions.mjs?v=1.20.1';
+import {createBilling} from './billing-ui.mjs?v=1.20.1';
+import {createDossierService} from './dossier.mjs?v=1.20.1';
+import {createOperations} from './operations-ui.mjs?v=1.20.1';
+import {saleErrors} from './reporting.mjs?v=1.20.1';
+import {createModules} from './modules-ui.mjs?v=1.20.1';
+import {stampPreparation,preparationDateErrors} from './preparation-history.mjs?v=1.20.1';
+import {ROLES,parseRoster,draftErrors,newId,validEmail} from './invitations.mjs?v=1.20.1';
+import {urgentDelivery,reminderDelivery,deliveryReady} from './delivery.mjs?v=1.20.1';
+import {recordErrors} from './record-validation.mjs?v=1.20.1';
+import {preparationSummary} from './preparation-view.mjs?v=1.20.1';
+import {TEAM_VIEWS,ACCESS_FIELDS,SUBMENUS,canViewSubcategory,availableSubcategories,canViewTeam,availableTeamViews,canEditObjectives,canManageAccess} from './permissions.mjs?v=1.20.1';
+import {SECTIONS,departmentSummary} from './objectives.mjs?v=1.20.1';
+import {DEPARTMENTS,EMPLOYEES} from './employees.mjs?v=1.20.1';
+import {STEPS,objectiveSummary,stepsFor,STATES,today,dayKey,dateObj,age,complete,progress,counts,preparationQueue,defaultSteps,validate,esc} from './domain.mjs?v=1.20.1';
+import {supabaseConfig} from './supabase-config.js?v=1.20.1';
+import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.20.1';
 const $=s=>document.querySelector(s),demo=new URLSearchParams(location.search).get('demo')==='1';
 const selectedDealership=new URLSearchParams(location.search).get('concession')||'levis-subaru';
 let metricUnsubs=[],metricYear='',departmentData={},objectiveView='vente';
@@ -145,27 +146,45 @@ try{
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
   });
   sdk=createSupabaseBridge(client,{dealershipId:selectedDealership,scoped:true,identity:()=>user||{}});auth=client;db=client;
-  const invitationLink=location.hash.includes('type=invite')||location.search.includes('type=invite');
-  client.auth.onAuthStateChange((event)=>{
-    if(event==='PASSWORD_RECOVERY'||(invitationLink&&event==='SIGNED_IN')){
-      queueMicrotask(()=>{const dlg=$('#passwordDialog');if(dlg&&!dlg.open)dlg.showModal();});
-    }
+  const passwordFlow=createPasswordFlow(location.href);
+  client.auth.onAuthStateChange((event,session)=>{
+    const state=passwordFlow.observe(event,session);
+    if(state.show)queueMicrotask(()=>{if(passwordFlow.ready){const dlg=$('#passwordDialog');if(!dlg.open)dlg.showModal();}});
+    if(state.invalid)queueMicrotask(()=>{$('#passwordDialog').close();$('#loginError').textContent=RECOVERY_EXPIRED;});
   });
+  $('#passwordDialog').addEventListener('cancel',event=>{if(passwordFlow.pending)event.preventDefault();});
   const pwForm=$('#passwordForm');
   pwForm.onsubmit=async ev=>{
-    ev.preventDefault();
+    ev.preventDefault();$('#passwordError').textContent='';
+    if(!passwordFlow.ready){$('#passwordError').textContent=RECOVERY_EXPIRED;return;}
     const pass=pwForm.elements.password.value;
     if(pass.length<12){$('#passwordError').textContent='Choisissez au moins 12 caractères.';return;}
+    if(pass!==pwForm.elements.confirmPassword.value){$('#passwordError').textContent='Les deux mots de passe doivent être identiques.';return;}
     const submit=pwForm.querySelector('[type=submit]');submit.disabled=true;
-    const {error}=await client.auth.updateUser({password:pass});
-    submit.disabled=false;
-    if(error){$('#passwordError').textContent=error.message;return;}
-    pwForm.reset();$('#passwordDialog').close();
-    toast('Mot de passe enregistré.');
+    try{
+      const {data,error}=await client.auth.updateUser({password:pass});if(error)throw error;
+      passwordFlow.complete();pwForm.reset();$('#passwordDialog').close();
+      history.replaceState(null,'',cleanPasswordUrl(location.href));
+      toast('Votre nouveau mot de passe est enregistré.');
+      await applyAuthUser(data.user?{uid:data.user.id,email:data.user.email}:null);
+    }catch(error){$('#passwordError').textContent=message(error);}
+    finally{submit.disabled=false;}
   };
-$('#loginForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;$('#loginError').textContent='';try{await sdk.signInWithEmailAndPassword(auth,f.elements.email.value.trim(),f.elements.password.value);f.elements.password.value='';}catch(e){$('#loginError').textContent=message(e);}finally{b.disabled=false;}};$('#reset').onclick=async()=>{const email=$('#loginForm').elements.email.value.trim();if(!email){$('#loginError').textContent='Inscrivez votre courriel avant de demander la réinitialisation.';return;}try{await sdk.sendPasswordResetEmail(auth,email);toast('Si ce compte existe, un courriel de réinitialisation sera envoyé.');}catch(e){$('#loginError').textContent=message(e);}};$('#logout').onclick=()=>sdk.signOut(auth);
+  const resetForm=$('#resetForm');
+  function showReset(show=true){$('#loginForm').hidden=show;resetForm.hidden=!show;$('#reset').hidden=show;$('#loginError').textContent='';if(show){resetForm.elements.email.value=$('#loginForm').elements.email.value.trim();resetForm.elements.email.focus();}}
+  $('#reset').onclick=()=>showReset();$('#resetBack').onclick=()=>showReset(false);
+  resetForm.onsubmit=async event=>{
+    event.preventDefault();const button=resetForm.querySelector('[type=submit]');button.disabled=true;$('#resetStatus').textContent='';
+    try{await sdk.sendPasswordResetEmail(auth,resetForm.elements.email.value.trim());$('#resetStatus').textContent='Si ce compte existe, un courriel de récupération sera envoyé. Ouvrez le lien le plus récent pour choisir votre nouveau mot de passe, sans saisir l’ancien.';}
+    catch(error){$('#resetStatus').textContent=message(error);}finally{button.disabled=false;}
+  };
+  if(new URLSearchParams(location.search).get('recuperation')==='1'||passwordFlow.invalid)showReset();
+$('#loginForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;$('#loginError').textContent='';try{await sdk.signInWithEmailAndPassword(auth,f.elements.email.value.trim(),f.elements.password.value);f.elements.password.value='';}catch(e){$('#loginError').textContent=message(e);}finally{b.disabled=false;}};$('#logout').onclick=()=>sdk.signOut(auth);
 let authGeneration=0;
-sdk.onAuthStateChanged(auth,async next=>{const generation=++authGeneration;modules.stop();operations.stop();billing.stop();central.stop();$('#app').hidden=true;$('#content').innerHTML='';$('#metrics').innerHTML='';document.querySelectorAll('dialog[open]').forEach(d=>d.close());profile=null;unsubs.forEach(fn=>fn());unsubs=[];metricUnsubs.forEach(fn=>fn());metricUnsubs=[];metricYear='';user=next;ready=false;records=[];goals={};departmentData={};team=[];employees=[];messages=[];$('#error').hidden=true;if(!next){$('#login').hidden=false;$('#app').hidden=true;return;}try{if(!new URLSearchParams(location.search).has('concession')){const access=await readAccessContext(client);if(!access.memberships.some(m=>m.dealership_id===selectedDealership)){if(access.memberships.length){location.replace('?concession='+encodeURIComponent(access.memberships[0].dealership_id));return;}if(access.canReadGroup){location.replace('./groupe/plateforme.html');return;}}}const snap=await sdk.getDoc(sdk.doc(db,'users',next.uid));if(generation!==authGeneration)return;if(!snap.exists()||snap.data().active!==true||!['admin','dg','directeur','employe'].includes(snap.data().role))throw Error('Votre compte n’a pas accès à la plateforme. Contactez votre administrateur.');profile=snap.data();await applyDealerContext(await readAccessContext(client));if(generation!==authGeneration)return;if(profile.invitationStatus==='pending'){await sdk.setDoc(sdk.doc(db,'users',next.uid),{invitationStatus:'active',lastLoginAt:new Date().toISOString()},{merge:true});profile.invitationStatus='active';}$('#identity').textContent=profile.name||next.email;$('#login').hidden=true;$('#app').hidden=false;$('#connection').textContent='Synchronisation…';render();unsubs.push(sdk.onSnapshot(sdk.collection(db,'vehicles'),snap=>{records=snap.docs.map(d=>({...d.data(),id:d.id}));ready=true;$('#connection').textContent=navigator.onLine?'Données synchronisées':'Hors ligne : données en cache';render();},fail));if(canViewSubcategory(profile,'settings','vente'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'goals'),snap=>{goals=Object.fromEntries(snap.docs.map(d=>[d.id,d.data()]));render();},fail));if(canViewTeam(profile,'users'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'employees'),s=>{employees=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));if(canViewTeam(profile,'messages'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'messages'),s=>{messages=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));/* Les 38 employés ont déjà été migrés : pas de réensemencement automatique. */if(canManageAccess(profile))unsubs.push(sdk.onSnapshot(sdk.collection(db,'users'),s=>{team=s.docs.map(d=>({...d.data(),uid:d.id}));render();},fail));unsubs.push(sdk.onSnapshot(sdk.doc(db,'users',next.uid),s=>{if(!s.exists()||!s.data().active||!['admin','dg','directeur','employe'].includes(s.data().role))sdk.signOut(auth);else{const updated=s.data(),changed=JSON.stringify(profile.permissions||{})!==JSON.stringify(updated.permissions||{})||profile.role!==updated.role||profile.department!==updated.department||JSON.stringify(profile.sections)!==JSON.stringify(updated.sections)||profile.canReadGroup!==updated.canReadGroup||profile.reportingEnabled!==updated.reportingEnabled;if(changed){location.reload();return;}profile=updated;$('#identity').textContent=(profile.name||next.email)+(profile.poste?' · '+profile.poste:'');render();}},fail));}catch(e){$('#loginError').textContent=message(e);await sdk.signOut(auth);}});
+async function applyAuthUser(next){
+const generation=++authGeneration;if(passwordFlow.pending&&next){user=next;ready=false;return;}modules.stop();operations.stop();billing.stop();central.stop();$('#app').hidden=true;$('#content').innerHTML='';$('#metrics').innerHTML='';document.querySelectorAll('dialog[open]').forEach(d=>d.close());profile=null;unsubs.forEach(fn=>fn());unsubs=[];metricUnsubs.forEach(fn=>fn());metricUnsubs=[];metricYear='';user=next;ready=false;records=[];goals={};departmentData={};team=[];employees=[];messages=[];$('#error').hidden=true;if(!next){$('#login').hidden=false;$('#app').hidden=true;return;}try{if(!new URLSearchParams(location.search).has('concession')){const access=await readAccessContext(client);if(!access.memberships.some(m=>m.dealership_id===selectedDealership)){if(access.memberships.length){location.replace('?concession='+encodeURIComponent(access.memberships[0].dealership_id));return;}if(access.canReadGroup){location.replace('./groupe/plateforme.html');return;}}}const snap=await sdk.getDoc(sdk.doc(db,'users',next.uid));if(generation!==authGeneration)return;if(!snap.exists()||snap.data().active!==true||!['admin','dg','directeur','employe'].includes(snap.data().role))throw Error('Votre compte n’a pas accès à la plateforme. Contactez votre administrateur.');profile=snap.data();await applyDealerContext(await readAccessContext(client));if(generation!==authGeneration)return;if(profile.invitationStatus==='pending'){await sdk.setDoc(sdk.doc(db,'users',next.uid),{invitationStatus:'active',lastLoginAt:new Date().toISOString()},{merge:true});profile.invitationStatus='active';}$('#identity').textContent=profile.name||next.email;$('#login').hidden=true;$('#app').hidden=false;$('#connection').textContent='Synchronisation…';render();unsubs.push(sdk.onSnapshot(sdk.collection(db,'vehicles'),snap=>{records=snap.docs.map(d=>({...d.data(),id:d.id}));ready=true;$('#connection').textContent=navigator.onLine?'Données synchronisées':'Hors ligne : données en cache';render();},fail));if(canViewSubcategory(profile,'settings','vente'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'goals'),snap=>{goals=Object.fromEntries(snap.docs.map(d=>[d.id,d.data()]));render();},fail));if(canViewTeam(profile,'users'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'employees'),s=>{employees=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));if(canViewTeam(profile,'messages'))unsubs.push(sdk.onSnapshot(sdk.collection(db,'messages'),s=>{messages=s.docs.map(d=>({...d.data(),id:d.id}));render();},fail));/* Les 38 employés ont déjà été migrés : pas de réensemencement automatique. */if(canManageAccess(profile))unsubs.push(sdk.onSnapshot(sdk.collection(db,'users'),s=>{team=s.docs.map(d=>({...d.data(),uid:d.id}));render();},fail));unsubs.push(sdk.onSnapshot(sdk.doc(db,'users',next.uid),s=>{if(!s.exists()||!s.data().active||!['admin','dg','directeur','employe'].includes(s.data().role))sdk.signOut(auth);else{const updated=s.data(),changed=JSON.stringify(profile.permissions||{})!==JSON.stringify(updated.permissions||{})||profile.role!==updated.role||profile.department!==updated.department||JSON.stringify(profile.sections)!==JSON.stringify(updated.sections)||profile.canReadGroup!==updated.canReadGroup||profile.reportingEnabled!==updated.reportingEnabled;if(changed){location.reload();return;}profile=updated;$('#identity').textContent=(profile.name||next.email)+(profile.poste?' · '+profile.poste:'');render();}},fail));}catch(e){$('#loginError').textContent=message(e);await sdk.signOut(auth);}
+}
+sdk.onAuthStateChanged(auth,applyAuthUser);
 }catch(e){$('#loginError').textContent='Impossible de charger Supabase. Vérifiez la configuration et Internet. '+message(e);}}
 window.addEventListener('offline',()=>{if(!demo)$('#connection').textContent='Hors ligne : reconnectez-vous avant d’enregistrer';});window.addEventListener('online',()=>{if(!demo)$('#connection').textContent='Connexion rétablie';});
 
@@ -323,7 +342,7 @@ async function applyDealerContext(scope){
  const choices=workspaceNavigation(scope,readable);document.querySelector('#concessionPicker')?.closest('label').remove();
  const label=document.createElement('label');label.className='workspace-picker';label.textContent='Concession';const pick=document.createElement('select');pick.id='concessionPicker';pick.setAttribute('aria-label','Choisir une concession autorisée');
  pick.innerHTML=choices.map(d=>'<option value="'+esc(d.id)+'">'+esc(d.name)+(d.destination==='reports'?' · rapports':'')+'</option>').join('');pick.value=selectedDealership;pick.onchange=()=>{const item=choices.find(d=>d.id===pick.value);if(item)location.href=platformDestination(item);};label.append(pick);brand.after(label);
- if(selectedDealership!=='levis-subaru'){for(const field of ['finance','driver'])$('#recordForm').elements[field].innerHTML='<option value="">Employés à compléter</option>';document.querySelector('main>footer').firstChild.textContent=m.name+' · Version 1.20.0 ';}
+ if(selectedDealership!=='levis-subaru'){for(const field of ['finance','driver'])$('#recordForm').elements[field].innerHTML='<option value="">Employés à compléter</option>';document.querySelector('main>footer').firstChild.textContent=m.name+' · Version 1.20.1 ';}
 }
 const central=createCentralReportingUI({state:()=>({profile,user,demo,sdk}),render,toast});
 const modules=createModules({state:()=>({profile,user,demo,sdk,db,tab,month:monthKey(),records,employees,goals,departmentData,objectiveView,teamView}),render,fail,toast,setMonth:m=>{calendarDate=dateObj(m+'-01');},navigate:(next,sub)=>{if(next==='group'){location.href='./groupe/plateforme.html';return;}modules.leave();tab=next;if(next==='settings'&&sub)objectiveView=sub;if(next==='team'&&sub)teamView=sub;filter='all';search='';render();},renderLegacySettings:renderSettings,getProducts:()=>operations.getProducts(),getWholesale:()=>operations.getWholesale(),operationsStatus:()=>operations.status(),renderSalesTools:view=>operations.renderSalesTools(view),selectedProducts:(ids,old)=>operations.selectedProducts(ids,old),saveSale:(sale,financials)=>dossierService.save({sale,financials}),prepareSale:(vehicle,sale)=>openRecord(vehicle.id,undefined,sale)});
