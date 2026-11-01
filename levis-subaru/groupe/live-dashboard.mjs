@@ -1,7 +1,7 @@
-import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.2';
-import {supabaseConfig} from '../supabase-config.js?v=1.20.2';
-import {readAccessContext} from '../access-context.mjs?v=1.20.2';
-import {createCentralReporting} from './reporting.mjs?v=1.20.2';
+import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.3';
+import {supabaseConfig} from '../supabase-config.js?v=1.20.3';
+import {readAccessContext} from '../access-context.mjs?v=1.20.3';
+import {createCentralReporting} from './reporting.mjs?v=1.20.3';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function normalizeReportPeriods(periods,progress,submissions){
  return periods.map(p=>({...p,endDate:p.end_date,total:p.required_sections.length,
@@ -33,6 +33,7 @@ export async function connectLiveDashboard({onData,onClear,onReload=async()=>fal
   finally{if(token===generation)pending=false;}
  }
  $('#groupLoginForm').onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button');b.disabled=true;try{const {error}=await client.auth.signInWithPassword({email:f.elements.email.value.trim(),password:f.elements.password.value});if(error)throw error;f.elements.password.value='';}catch(err){$('#groupError').textContent=err.message;}finally{b.disabled=false;}};
+ $('#groupLoginForm button[type=submit]').disabled=false;
  $('#groupLogout').onclick=()=>client.auth.signOut();$('#groupReload').onclick=async()=>{
   const button=$('#groupReload');button.disabled=true;
   try{if(await onReload())return;}
