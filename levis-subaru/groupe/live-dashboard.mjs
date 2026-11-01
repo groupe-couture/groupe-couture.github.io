@@ -1,6 +1,6 @@
-import {supabaseConfig} from '../supabase-config.js?v=1.18.2';
-import {readAccessContext} from '../access-context.mjs?v=1.18.2';
-import {createCentralReporting} from './reporting.mjs?v=1.18.2';
+import {supabaseConfig} from '../supabase-config.js?v=1.19.0';
+import {readAccessContext} from '../access-context.mjs?v=1.19.0';
+import {createCentralReporting} from './reporting.mjs?v=1.19.0';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function normalizeReportPeriods(periods,progress,submissions){
  return periods.map(p=>({...p,endDate:p.end_date,total:p.required_sections.length,

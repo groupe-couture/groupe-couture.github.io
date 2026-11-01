@@ -16,3 +16,4 @@
 .pdf-bottom{flex-wrap:wrap}#pdfView{text-decoration:none;text-align:center}
 
 .entry-month{color:#087c72;font-weight:600}
+.service-analyses{display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 16px}.service-analyses[hidden]{display:none}.service-analyses button[aria-pressed=true]{background:#12394c;color:white;border-color:#12394c}

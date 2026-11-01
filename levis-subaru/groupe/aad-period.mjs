@@ -1,4 +1,4 @@
-import {groupStartMonth,outsideGroup} from './group-membership.mjs?v=1.18.2';
+import {groupStartMonth,outsideGroup} from './group-membership.mjs?v=1.19.0';
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
 const monthName=m=>new Date(m+'-15T12:00:00Z').toLocaleDateString('fr-CA',{month:'long',timeZone:'America/Toronto'});
 export function selectAadPeriod(dealers,observations,selectedMonth,{source='history'}={}){

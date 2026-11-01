@@ -1,11 +1,12 @@
-import {linkedSale,linkedVehicle} from './dossier.mjs?v=1.18.2';
-import {salesMetrics,salesReporting,addWholesaleMetrics} from './operations.mjs?v=1.18.2';
-import {HOUSE,salespeople,boardSeller,salesBoardGroups,dealGrid} from './sales-board.mjs?v=1.18.2';
-import {esc,today,dateObj,dayKey,objectiveSummary} from './domain.mjs?v=1.18.2';
-import {canEditObjectives,isMember,canViewTeam,canViewModule} from './permissions.mjs?v=1.18.2';
-import {DEPT_FIELDS,PLAN_FIELDS,number,periodsForMonth,reportId,planId,reportErrors,saleErrors,salesSummary,summarizeReports,summarizePlans,monthsForPeriod,legacySalesSummary} from './reporting.mjs?v=1.18.2';
-import {preparationAnalysis} from './preparation-history.mjs?v=1.18.2';
-import {newId} from './invitations.mjs?v=1.18.2';
+import {linkedSale,linkedVehicle} from './dossier.mjs?v=1.19.0';
+import {salesMetrics,salesReporting,addWholesaleMetrics} from './operations.mjs?v=1.19.0';
+import {HOUSE,salespeople,boardSeller,salesBoardGroups,dealGrid} from './sales-board.mjs?v=1.19.0';
+import {esc,today,dateObj,dayKey,objectiveSummary} from './domain.mjs?v=1.19.0';
+import {canEditObjectives,isMember,canViewTeam,canViewModule} from './permissions.mjs?v=1.19.0';
+import {DEPT_FIELDS,PLAN_FIELDS,number,periodsForMonth,reportId,planId,reportErrors,saleErrors,salesSummary,summarizeReports,summarizePlans,monthsForPeriod,legacySalesSummary} from './reporting.mjs?v=1.19.0';
+import {preparationAnalysis} from './preparation-history.mjs?v=1.19.0';
+import {newId} from './invitations.mjs?v=1.19.0';
+import {createDealershipHistory,historyDepartments} from './dealership-history-ui.mjs?v=1.19.0';
 const names={vente:'Ventes',service:'Service',piece:'Pièces',esthetique:'Esthétique'};
 const payments={comptant:['Comptant','cash'],financement:['Financement','finance'],location:['Location','lease']};
 const sum=a=>{const v=a.filter(Number.isFinite);return v.length?v.reduce((n,x)=>n+x,0):null;};
@@ -15,17 +16,19 @@ const tag=(s,cls='')=>`<span class="ls-badge ${cls}">${esc(s)}</span>`;
 const card=(label,value,sub='')=>`<div class="ls-stat"><span class="ls-stat-label">${esc(label)}</span><strong class="ls-stat-value">${value}</strong><span class="ls-stat-sub">${esc(sub)}</span></div>`;
 const fields=(list,values={},prefix='')=>list.map(([k,l,type])=>`<label>${esc(l)}<input name="${prefix+k}" type="number" ${type!=='money'?'min="0"':''} step="${['count','stock','unit'].includes(type)?'1':'0.01'}" value="${values[k]??''}" required></label>`).join('');
 export function createModules(ctx){
- let modeVO='list',kind='VN',salesView='board',reportKind='VN',mode='month',department='vente',weekKind='VN',selectedPeriod='',serviceView='atelier',subs=[],connected='',loaded=false,pending=0,loadError=false,dirty=false,dialog=null,editingSale=null,salesObserver=null;
+ let modeVO='list',kind='VN',salesView='board',reportKind='VN',mode='month',department='vente',weekKind='VN',selectedPeriod='',serviceView='telepresence',generalSource='telepresence',subs=[],connected='',loaded=false,pending=0,loadError=false,dirty=false,dialog=null,editingSale=null,salesObserver=null;
  let sales=[],finances=[],targets=[],reports=[],plans=[],legacy={};
  const C=()=>ctx.state(),$=s=>document.querySelector(s),can=d=>canEditObjectives(C().profile,d),departments=()=>Object.keys(names).filter(can);
  const getMonth=()=>C().month;
- function stop(){subs.forEach(f=>f());subs=[];connected='';loaded=false;pending=0;loadError=false;sales=[];finances=[];targets=[];reports=[];plans=[];legacy={};salesView='board';dirty=false;dialog?.close();}
+ const imported=createDealershipHistory(ctx);
+ function mountHistory(ids,{collapsible=false}={}){const node=document.createElement(collapsible?'details':'div');node.className='local-imported-data';if(collapsible){node.innerHTML='<summary>Résultats Téléprésence importés · cette concession</summary><div></div>';}$('#content').prepend(node);imported.mount(collapsible?node.querySelector('div'):node,{departments:ids});}
+ function stop(){imported.stop();subs.forEach(f=>f());subs=[];connected='';loaded=false;pending=0;loadError=false;sales=[];finances=[];targets=[];reports=[];plans=[];legacy={};salesView='board';dirty=false;dialog?.close();}
  function localSave(){if(C().demo)localStorage.setItem('levis-modules-v111',JSON.stringify({sales,finances,targets,reports,plans,legacy}));}
  function refresh(){if(!dirty&&!dialog?.open)ctx.render();}
  function connect(){
-  const c=C();if(!c.profile||!isMember(c.profile))return;const key=c.user.uid+'_'+getMonth().slice(0,4)+'_'+c.profile.role+'_'+c.profile.department;if(key===connected)return;
+  const c=C();if(!c.profile||!isMember(c.profile))return;const key=[c.user.uid,c.profile.dealershipId,getMonth().slice(0,4),c.profile.role,c.profile.department,...(c.profile.sections||[]).slice().sort()].join('_');if(key===connected)return;
   subs.forEach(f=>f());subs=[];connected=key;
-  if(c.demo){try{const x=JSON.parse(localStorage.getItem('levis-modules-v111')||'{}');sales=x.sales||[];finances=x.finances||[];targets=x.targets||[];reports=x.reports||[];plans=x.plans||[];legacy=x.legacy||{};}catch{}loaded=true;return;}
+  if(c.demo){serviceView='atelier';try{const x=JSON.parse(localStorage.getItem('levis-modules-v111')||'{}');sales=x.sales||[];finances=x.finances||[];targets=x.targets||[];reports=x.reports||[];plans=x.plans||[];legacy=x.legacy||{};}catch{}loaded=true;return;}
   const {sdk,db}=c,y=getMonth().slice(0,4);loaded=false;pending=0;loadError=false;
   const watch=(collection,query,assign)=>{pending++;let first=true;subs.push(sdk.onSnapshot(query,s=>{assign(s.docs.map(d=>({...d.data(),id:d.id})));if(first){pending--;first=false;}loaded=pending===0;refresh();},e=>{loadError=true;ctx.fail(e);if(first){pending--;first=false;}loaded=pending===0;refresh();}));};
   if(can('vente'))watch('sales',sdk.collection(db,'sales'),v=>sales=v);else sales=[];
@@ -93,6 +96,7 @@ export function createModules(ctx){
   const canceled=sales.filter(s=>s.type===kind&&s.status==='Annulée'&&s.saleDate?.startsWith(getMonth()));if(canceled.length)$('#content').insertAdjacentHTML('beforeend','<button id="canceledSales" class="sales-canceled">Ventes annulées · '+canceled.length+'</button>');
   if($('#canceledSales'))$('#canceledSales').onclick=()=>{const d=getDialog();d.innerHTML='<div class="dialog-top"><h2>Ventes annulées</h2><button id="closeModule" aria-label="Fermer">✕</button></div>'+canceled.map(s=>'<p>'+esc(s.stock)+' · '+esc(s.client)+' <button data-canceled="'+esc(s.id)+'">Ouvrir</button></p>').join('');d.showModal();$('#closeModule').onclick=()=>d.close();d.querySelectorAll('[data-canceled]').forEach(b=>b.onclick=()=>{d.close();openSale(b.dataset.canceled);});};
   $('#newSale').onclick=()=>openSale();if($('#sellerGoals'))$('#sellerGoals').onclick=()=>openSellerGoals(groups);document.querySelectorAll('[data-sale]').forEach(b=>b.onclick=()=>openSale(b.dataset.sale));
+  if(can('vente')&&!C().demo)mountHistory([kind==='VN'?'vn':'vo'],{collapsible:true});
   const arrange=()=>{if(C().tab!=='sales')return;document.querySelectorAll('.ls-deals').forEach(el=>{const count=el.querySelectorAll('.ls-deal').length,r=el.getBoundingClientRect(),scale=parseFloat(getComputedStyle(document.documentElement).fontSize)/16,grid=dealGrid(r.width/scale,r.height/scale,count);el.style.setProperty('--deal-columns',grid.columns);el.style.setProperty('--deal-rows',grid.rows);el.style.setProperty('--deal-width',Math.floor(grid.width*scale)+'px');el.style.setProperty('--deal-height',Math.floor(grid.height*scale)+'px');});};
   if(typeof ResizeObserver!=='undefined'){salesObserver=new ResizeObserver(arrange);salesObserver.observe($('#content'));}requestAnimationFrame(arrange);
  }
@@ -151,7 +155,12 @@ export function createModules(ctx){
   return `<div class="ls-table-wrap"><table class="ls-report"><thead><tr><th>Indicateur</th>${headings.map((h,i)=>`<th class="${periodMode==='year'?i===0?'ls-report-total':'':i===periods.length?'ls-report-total':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${[...defs[d],...(d==='vente'&&k==='VO'?[['retailUnits','Ventes au détail',''],['wholesaleUnits','Ventes wholesale',''],['wholesaleProfit','Profit wholesale net (inclus ci-dessus)','$']]:[])].map(([key,label,unit])=>{const values=periodMode==='year'?[stats.values[key],stats.target[key],prior.values[key]]:[...cells.map(v=>v[key]),stats.values[key],stats.target[key]];return `<tr><td>${label}</td>${values.map((v,i)=>`<td class="${i===(periodMode==='year'?0:periods.length)?'ls-report-total':''}">${fmt(v,unit)}</td>`).join('')}</tr>`;}).join('')}</tbody></table></div><p class="ls-footnote">${stats.source}${d==='vente'&&k==='VO'?' · Total Occasion = détail + wholesale enregistré; profit wholesale après coûts et frais. La moyenne F&I utilise seulement les ventes au détail.':''} · ${stats.count} rapport(s) reçu(s) · ${stats.missing} mois sans données. — signifie non renseigné. Les stocks sont des photos de situation; les taux sont calculés sur les données cumulées. Le délai de lavage utilise les dates des étapes VO et les exclut si elles sont manquantes.</p>`;
  }
  function general(){
+  if(!C().demo&&generalSource==='telepresence'){
+   header('Tableau général','Données Téléprésence de votre concession','<button id="localOperational">Données opérationnelles et objectifs</button>');
+   $('#localOperational').onclick=()=>{generalSource='operational';general();};$('#content').innerHTML='';mountHistory(historyDepartments(C().profile));return;
+  }
   const ds=departments();header('Tableau général',C().profile.role==='admin'?'Tous les départements · vue administrateur':'Départements autorisés par votre profil',monthControls()+`<button id="reportMonth" class="${mode==='month'?'primary':''}">Mois</button><button id="reportYear" class="${mode==='year'?'primary':''}">Année à date · AAD</button>`);
+  if(!C().demo){const b=document.createElement('button');b.textContent='Données Téléprésence';b.onclick=()=>{generalSource='telepresence';general();};$('#toolbar').append(b);}
   $('#reportMonth').onclick=()=>{mode='month';general();};$('#reportYear').onclick=()=>{mode='year';general();};
   if(!ds.length){$('#content').innerHTML='<div class="empty">Les résultats et objectifs sont réservés aux directeurs de leur département et aux administrateurs. Les opérations restent disponibles dans le menu.</div>';return;}
   const months=monthsForPeriod(getMonth(),mode,today()),rows=[];
@@ -168,9 +177,11 @@ export function createModules(ctx){
 
  }
  function serviceBoard(){
-  header('Tableau du service','Point du vendredi et cumul du mois · main-d’œuvre séparée des pièces',monthControls()+`<button id="atelier" class="${serviceView==='atelier'?'primary':''}">Atelier</button><button id="advisors" class="${serviceView==='aviseurs'?'primary':''}">Par aviseur</button>`);
+  header('Tableau du service','Analyses Téléprésence et KPI d’atelier conservés',(serviceView!=='telepresence'?monthControls():'')+`<button id="serviceTelepresence" class="${serviceView==='telepresence'?'primary':''}">Téléprésence</button><button id="atelier" class="${serviceView==='atelier'?'primary':''}">Atelier · KPI conservés</button><button id="advisors" class="${serviceView==='aviseurs'?'primary':''}">Par aviseur</button>`);
+  $('#serviceTelepresence').onclick=()=>{serviceView='telepresence';serviceBoard();};
   $('#atelier').onclick=()=>{serviceView='atelier';serviceBoard();};$('#advisors').onclick=()=>{serviceView='aviseurs';serviceBoard();};
   if(!can('service')){$('#content').innerHTML='<div class="empty">Les résultats du service sont réservés au directeur du service et aux administrateurs.</div>';return;}
+  if(serviceView==='telepresence'){$('#content').innerHTML='';mountHistory(['service']);return;}
   const stats=combined('service','all',[getMonth()]);$('#content').innerHTML=`<div class="ls-summary">${card('Chiffre d’affaires MO',fmt(stats.values.revenue,'$'),'Mois sélectionné')}${card('Profit brut MO',fmt(stats.values.profit,'$'),fmt(stats.values.margin,'%')+' de marge')}${card('Heures vendues',fmt(stats.values.hours,'h'),'Objectif : '+fmt(stats.target.hours,'h'))}</div><section class="ls-panel">${serviceView==='atelier'?reportTable('service','all','month'):advisorTable()}</section><p class="ls-footnote">Productivité : pointées / présence. Efficacité : vendues / pointées. Utilisation : vendues / présence. Un ratio sans dénominateur mesuré reste non renseigné.</p>`;
  }
  function advisorTable(){
@@ -192,6 +203,7 @@ export function createModules(ctx){
    `<section class="ls-panel"><h2>Objectif mensuel${d==='vente'?' · ventes signées':''}</h2><form id="monthlyPlanForm"><div class="ls-fields">${fields(PLAN_FIELDS[d],existing?.values||defaults)}</div><div class="ls-form-actions"><span class="ls-secondary">${getMonth()} · ${d==='vente'?(k==='VN'?'Neuf':'Occasion'):names[d]}</span><button class="ls-btn primary">Enregistrer l’objectif</button></div><p id="planError" role="alert" class="error"></p></form></section>`+
    `<section class="ls-panel"><div class="ls-row ls-between"><h2>Suivi hebdomadaire</h2>${tag(old?'Complété':isDue?'En retard':'À compléter vendredi',old?'':'due')}</div><label>Période<select id="weeklyPeriod">${periods.map(p=>`<option value="${p.periodEnd}" ${p.periodEnd===selectedPeriod?'selected':''}>${dateLabel(p.periodStart)} → ${dateLabel(p.periodEnd)} · vendredi ${dateLabel(p.dueOn)} · ${reports.some(r=>r.id===reportId(d,k,p))?'Complété':p.dueOn<today()?'Manquant':p.periodEnd>today()?'À venir':'À compléter'}</option>`).join('')}</select></label><p class="ls-footnote">Les périodes sont coupées à la fin du mois. 0 = aucune activité; un champ vide n’est pas une donnée. ${future?'Cette période n’est pas encore terminée.':''}</p><form id="weeklyReportForm" novalidate><div class="ls-fields">${fields(DEPT_FIELDS[d],values)}</div>${d==='service'?'<label class="check"><input id="useAdvisors" type="checkbox"> Ventiler les ventes MO, bons et heures par aviseur</label><div id="advisorEntry"></div>':''}<p id="weeklyError" role="alert" class="error"></p><div id="weeklyCalculations" class="ls-split"></div><div class="ls-form-actions"><span class="ls-secondary">${old?'Dernière saisie : '+esc(old.updatedByName||'directeur')+' · '+esc(old.updatedAt?.slice(0,10)||''): 'Saisie attendue chaque vendredi'}</span><button class="ls-btn primary" ${future?'disabled':''}>Enregistrer la période</button></div></form></section><details class="legacy-objectives"><summary>${d==='vente'?'Objectifs de livraison et saisie mensuelle antérieure':'Saisie mensuelle antérieure conservée'}</summary><div id="legacyObjectives"></div></details>`;
   $('#legacyObjectives').append(legacyContent);if(d==='vente'){for(const [button,t]of [['weeklyVN','VN'],['weeklyVO','VO']])$('#'+button).onclick=()=>{dirty=false;weekKind=t;objectives();};}
+  if(!C().demo&&d!=='esthetique')mountHistory(d==='vente'?[k==='VN'?'vn':'vo']:[d==='piece'?'parts':d],{collapsible:d!=='piece'});
   $('#weeklyPeriod').onchange=e=>{dirty=false;selectedPeriod=e.target.value;objectives();};
   const pf=$('#monthlyPlanForm');pf.oninput=()=>dirty=true;pf.onsubmit=async e=>{e.preventDefault();const b=pf.querySelector('button');b.disabled=true;try{const data={};for(const [key,,type]of PLAN_FIELDS[d]){const n=number(pf.elements[key].value);if(n===null||(type!=='money'&&n<0)||(['unit','count'].includes(type)&&!Number.isInteger(n)))throw Error('Complétez tous les objectifs avec des valeurs valides.');data[key]=n;}await put('monthlyPlans',id,{department:d,kind:k,month:getMonth(),values:data});dirty=false;ctx.toast('Objectif enregistré');ctx.render();}catch(err){$('#planError').textContent=err.message;}finally{b.disabled=false;}};
   if(d==='vente'&&sales.some(s=>s.type===k&&s.saleDate?.startsWith(getMonth()))&&(!old||salesReporting(sales,finances,reports,{type:k,month:getMonth()}).periods.find(p=>p.periodEnd===period.periodEnd)?.useDetailed)){
