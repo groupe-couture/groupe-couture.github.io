@@ -1,7 +1,7 @@
-import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.1';
-import {supabaseConfig} from '../supabase-config.js?v=1.20.1';
-import {readAccessContext} from '../access-context.mjs?v=1.20.1';
-import {createCentralReporting} from './reporting.mjs?v=1.20.1';
+import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.2';
+import {supabaseConfig} from '../supabase-config.js?v=1.20.2';
+import {readAccessContext} from '../access-context.mjs?v=1.20.2';
+import {createCentralReporting} from './reporting.mjs?v=1.20.2';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function normalizeReportPeriods(periods,progress,submissions){
  return periods.map(p=>({...p,endDate:p.end_date,total:p.required_sections.length,
