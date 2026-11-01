@@ -1,16 +1,22 @@
-// Supabase adapter for the legacy Firestore-shaped UI, edition 1.13.
+import {readAccessContext,accessProfile} from './access-context.mjs';
+// Adaptateur des écrans : le périmètre est vérifié à nouveau sur chaque requête serveur.
 // All authorization is enforced by PostgreSQL RLS, not by this client.
-export function createSupabaseBridge(client) {
+export function createSupabaseBridge(client,{dealershipId='levis-subaru',scoped=false,identity=()=>({})}={}) {
+  if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(dealershipId))throw Error('Concession invalide.');
+  const table=dealershipId==='levis-subaru'?'ls_documents':'gc_documents';
+  const documents=()=>{const q=client.from(table);return q;};
+  const restrict=q=>table==='gc_documents'?q.eq('dealership_id',dealershipId):q;
+  async function ownProfile(){return accessProfile(await readAccessContext(client),dealershipId,identity());}
   const subscriptions=new Set();
   const channels=new Map();
   function attachRealtime(name){
     if(name==='users'||typeof client.channel!=='function')return;
     let entry=channels.get(name);
     if(!entry){
-      const channel=client.channel('levis-'+name)
+      const channel=client.channel('gc-'+dealershipId+'-'+name)
         .on('postgres_changes',{
-          event:'*',schema:'public',table:'ls_documents',
-          filter:'collection_name=eq.'+name
+          event:'*',schema:'public',table,
+          filter:table==='gc_documents'?'dealership_id=eq.'+dealershipId:'collection_name=eq.'+name
         },()=>requestRefresh(name)).subscribe();
       entry={channel,count:0};
       channels.set(name,entry);
@@ -43,14 +49,15 @@ export function createSupabaseBridge(client) {
   });
   async function list(src) {
     if(src.collection==='users'){
+      if(scoped){const p=await ownProfile();return p?[{id:p.uid,data:p}]:[];}
       const rows=unwrap(await client.from('ls_members').select('*'));
       return (rows||[]).map(r=>({id:r.user_id,data:mapMember(r)}));
     }
     // Firestore collections are small for this dealership. Pagination handles growth.
     const out=[];
     for(let offset=0;;offset+=500){
-      const rows=unwrap(await client.from('ls_documents')
-        .select('document_id,data').eq('collection_name',src.collection)
+      const rows=unwrap(await restrict(documents()
+        .select('document_id,data')).eq('collection_name',src.collection)
         .order('document_id').range(offset,offset+499));
       for(const row of rows)out.push({id:row.document_id,data:row.data});
       if(rows.length<500)break;
@@ -60,11 +67,12 @@ export function createSupabaseBridge(client) {
   async function getDoc(source){
     if(source.kind!=='doc')throw Error('Document attendu');
     if(source.collection==='users'){
+      if(scoped){const p=await ownProfile();return shot(source.id,p?.uid===source.id?p:null);}
       const row=unwrap(await client.from('ls_members').select('*')
         .eq('user_id',source.id).maybeSingle());
       return shot(source.id,mapMember(row));
     }
-    const row=unwrap(await client.from('ls_documents').select('data')
+    const row=unwrap(await restrict(documents().select('data'))
       .eq('collection_name',source.collection).eq('document_id',source.id).maybeSingle());
     return shot(source.id,row?.data??null);
   }
@@ -78,6 +86,7 @@ export function createSupabaseBridge(client) {
   }
   async function setDoc(source,data,options={}){
     if(source.collection==='users'){
+      if(dealershipId!=='levis-subaru')throw Error('Les accès de cette concession restent à compléter avec les employés.');
       const patch={
         email:data.email,role:data.role,department:data.department,
         active:data.active,name:data.name,poste:data.poste
@@ -90,6 +99,14 @@ export function createSupabaseBridge(client) {
       return;
     }
     let payload=structuredClone(data);
+    if(scoped){
+      const old=await getDoc(source);
+      if(options.merge)payload={...(old.data()||{}),...payload};
+      errorIf(await client.rpc('gc_document_transaction',{p_dealership:dealershipId,p_steps:[{
+        collection:source.collection,id:source.id,expected:old.data()??null,data:payload
+      }]}));
+      requestRefresh(source.collection);return;
+    }
     if(options.merge){
       const existing=await getDoc(source);
       payload={...(existing.data()||{}),...payload};
@@ -149,11 +166,14 @@ export function createSupabaseBridge(client) {
       steps.push({collection:r.collection,id:r.id,
         expected:snapshots.get(k).data()??null,data});
     }
-    errorIf(await client.rpc('ls_apply_transaction',{p_steps:steps}));
+    errorIf(await client.rpc(scoped?'gc_document_transaction':'ls_apply_transaction',{
+      p_steps:steps,...(scoped?{p_dealership:dealershipId}:{})
+    }));
     for(const s of steps)requestRefresh(s.collection);
     return result;
   }
   async function inviteEmployee(employee){
+    if(dealershipId!=='levis-subaru')throw Error('Les employés et les accès de cette concession restent à compléter.');
     const result=await client.functions.invoke('invite-employee',{body:{employee,sitePath:typeof location!=='undefined' ? location.pathname : '/levis-subaru-test/'}});
     if(result.error){
       try{

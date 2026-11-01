@@ -1,7 +1,7 @@
-import {esc,today} from './domain.mjs?v=1.16.0';
-import {canEditObjectives} from './permissions.mjs?v=1.16.0';
-import {newId} from './invitations.mjs?v=1.16.0';
-import {BILLING_CATEGORIES,TAX_MODES,INVOICE_SETUP,billingTotals,lineAmounts,draftErrors,draftFromDossier} from './billing.mjs?v=1.16.0';
+import {esc,today} from './domain.mjs?v=1.17.0';
+import {canEditObjectives} from './permissions.mjs?v=1.17.0';
+import {newId} from './invitations.mjs?v=1.17.0';
+import {BILLING_CATEGORIES,TAX_MODES,INVOICE_SETUP,billingTotals,lineAmounts,draftErrors,draftFromDossier} from './billing.mjs?v=1.17.0';
 const currency=v=>new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD'}).format(v);
 const input=(name,label,value='',extra='')=>`<label>${label}<input name="${name}" value="${esc(value??'')}" ${extra}></label>`;
 const emptyLine=()=>({category:'Produit',sku:'',description:'',quantity:1,unitPrice:'',discount:0,taxMode:'qc'});
@@ -23,7 +23,7 @@ export function createBilling(ctx){
  function totalsHTML(t){return `<dl class="billing-totals"><div><dt>Sous-total avant taxes</dt><dd>${currency(t.subtotal)}</dd></div><div><dt>TPS · 5 %</dt><dd>${currency(t.gst)}</dd></div><div><dt>TVQ · 9,975 %</dt><dd>${currency(t.qst)}</dd></div><div><dt>Total estimé</dt><dd><strong>${currency(t.total)}</strong></dd></div></dl>`;}
  function printDraft(draft){
   let area=$('#printArea');if(!area){area=document.createElement('section');area.id='printArea';document.body.append(area);}
-  area.innerHTML=`<header><strong>Lévis Subaru</strong><h1>Brouillon de facture — non émise</h1><p>Référence brouillon : BR-${esc(draft.id.slice(0,8))} · ${esc(draft.date)}</p></header><p><strong>Client :</strong> ${esc(draft.client)}<br>${esc(draft.clientAddress||'')}<br>${esc(draft.email||'')}</p><p>Référence : ${esc(draft.reference||'—')}</p><table><thead><tr><th>Article / référence</th><th>Quantité</th><th>Prix unitaire</th><th>Rabais</th><th>Montant net</th><th>Taxes</th></tr></thead><tbody>${draft.lines.map(l=>`<tr><td>${esc(l.category)} · ${esc(l.description)}<br>${esc(l.sku)}</td><td>${esc(l.quantity)}</td><td>${currency(l.unitPrice)}</td><td>${currency(l.discount)}</td><td>${currency(lineAmounts(l).net/100)}</td><td>${esc(TAX_MODES[l.taxMode])}</td></tr>`).join('')}</tbody></table>${totalsHTML(billingTotals(draft.lines))}<p>Modalités proposées : ${esc(draft.paymentTerms||'À confirmer')}</p><p>${esc(draft.notes||'')}</p><p><strong>BROUILLON — aucune facture officielle émise.</strong><br>Coordonnées légales, numéros TPS/TVQ et numérotation à confirmer avec la comptabilité.</p>`;
+  area.innerHTML=`<header><strong>${esc(C().profile.dealershipName||'Lévis Subaru')}</strong><h1>Brouillon de facture — non émise</h1><p>Référence brouillon : BR-${esc(draft.id.slice(0,8))} · ${esc(draft.date)}</p></header><p><strong>Client :</strong> ${esc(draft.client)}<br>${esc(draft.clientAddress||'')}<br>${esc(draft.email||'')}</p><p>Référence : ${esc(draft.reference||'—')}</p><table><thead><tr><th>Article / référence</th><th>Quantité</th><th>Prix unitaire</th><th>Rabais</th><th>Montant net</th><th>Taxes</th></tr></thead><tbody>${draft.lines.map(l=>`<tr><td>${esc(l.category)} · ${esc(l.description)}<br>${esc(l.sku)}</td><td>${esc(l.quantity)}</td><td>${currency(l.unitPrice)}</td><td>${currency(l.discount)}</td><td>${currency(lineAmounts(l).net/100)}</td><td>${esc(TAX_MODES[l.taxMode])}</td></tr>`).join('')}</tbody></table>${totalsHTML(billingTotals(draft.lines))}<p>Modalités proposées : ${esc(draft.paymentTerms||'À confirmer')}</p><p>${esc(draft.notes||'')}</p><p><strong>BROUILLON — aucune facture officielle émise.</strong><br>Coordonnées légales, numéros TPS/TVQ et numérotation à confirmer avec la comptabilité.</p>`;
   window.print();
  }
  function edit(id){
