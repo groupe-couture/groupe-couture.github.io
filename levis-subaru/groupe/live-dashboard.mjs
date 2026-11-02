@@ -1,7 +1,7 @@
-import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.3';
-import {supabaseConfig} from '../supabase-config.js?v=1.20.3';
-import {readAccessContext} from '../access-context.mjs?v=1.20.3';
-import {createCentralReporting} from './reporting.mjs?v=1.20.3';
+import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.4';
+import {supabaseConfig} from '../supabase-config.js?v=1.20.4';
+import {readAccessContext} from '../access-context.mjs?v=1.20.4';
+import {createCentralReporting} from './reporting.mjs?v=1.20.4';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function normalizeReportPeriods(periods,progress,submissions){
  return periods.map(p=>({...p,endDate:p.end_date,total:p.required_sections.length,
@@ -13,7 +13,7 @@ export async function connectLiveDashboard({onData,onClear,onReload=async()=>fal
  const passwordTarget=passwordReturnTarget(location.href);if(passwordTarget){location.replace(passwordTarget);return;}
  const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm');
  const client=createClient(supabaseConfig.url,supabaseConfig.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}),api=createCentralReporting(client);
- let generation=0,pending=false,authenticated=false,historyCache=null,scopeKey='';
+ let generation=0,pending=false,authenticated=false,sessionUserId='',historyCache=null,scopeKey='';
  async function refresh({clear=false}={}){
   if(pending&&!clear)return;const token=++generation;pending=true;if(clear){onClear();$('#groupShell').hidden=true;}$('#groupError').textContent='';
   try{
@@ -43,7 +43,9 @@ export async function connectLiveDashboard({onData,onClear,onReload=async()=>fal
  };
  client.auth.onAuthStateChange((event,session)=>{
   if(!['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT','TOKEN_REFRESHED','USER_UPDATED'].includes(event))return;
-  authenticated=!!session?.user;generation++;historyCache=null;scopeKey='';onClear();$('#groupShell').hidden=true;$('#groupLogin').hidden=false;$('#ownConcessions').innerHTML='';
+  const nextUserId=session?.user?.id||'';
+  if(nextUserId&&authenticated&&nextUserId===sessionUserId&&!$('#groupShell').hidden)return;
+  sessionUserId=nextUserId;authenticated=!!session?.user;generation++;historyCache=null;scopeKey='';onClear();$('#groupShell').hidden=true;$('#groupLogin').hidden=false;$('#ownConcessions').innerHTML='';
   if(authenticated)queueMicrotask(()=>refresh({clear:true}));
  });
  const timer=setInterval(async()=>{if(authenticated&&!document.hidden&&!await onReload())refresh();},30000);

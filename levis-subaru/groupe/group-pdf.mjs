@@ -1,11 +1,11 @@
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.20.3';
-import {groupEntryLabel} from './group-membership.mjs?v=1.20.3';
-import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.20.3';
-import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.20.3';
-import {reportingPeriod} from './reporting.mjs?v=1.20.3';
-import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.20.3';
-import {HISTORY_DEPARTMENTS,historyTotals,historyNotes,historyServiceAnalyses} from './history-model.mjs?v=1.20.3';
-import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.20.3';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.20.4';
+import {groupEntryLabel} from './group-membership.mjs?v=1.20.4';
+import {REPORT_DEPARTMENTS,selectedDepartments,departmentTotals,departmentNotes,formatReportValue,reportStateLabel} from './department-reporting.mjs?v=1.20.4';
+import {REPORT_LABELS,sortGroupRows} from './dashboard-model.mjs?v=1.20.4';
+import {reportingPeriod} from './reporting.mjs?v=1.20.4';
+import {FONT_WIDTHS} from './pdf-font-metrics.mjs?v=1.20.4';
+import {HISTORY_DEPARTMENTS,historyTotals,historyNotes,historyServiceAnalyses,historyTotalNotes} from './history-model.mjs?v=1.20.4';
+import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.20.4';
 const WINANSI={8364:128,8218:130,402:131,8222:132,8230:133,8224:134,8225:135,710:136,8240:137,352:138,8249:139,338:140,381:142,8216:145,8217:146,8220:147,8221:148,8226:149,8211:150,8212:151,732:152,8482:153,353:154,8250:155,339:156,382:158,376:159};
 const normalize=value=>String(value??'').replace(/[\u00a0\u202f\t]/g,' ').replace(/[\r\n]+/g,' ').replace(/→/g,' > ').replace(/✓/g,'OK');
 const code=char=>char.charCodeAt(0)<256?char.charCodeAt(0):WINANSI[char.charCodeAt(0)]??63;
@@ -69,9 +69,9 @@ function renderSheet({rows,allRows,id,serviceAnalysis,kind,month,scope,search,pe
  page.rect(M,y-23,inner,23,[.884,.938,.944]);
  for(const col of columns){const value=col.key==='name'?(historical?totals.partialTotals?'Total connu · partiel':'Groupe importé':'Groupe soumis'):col.key==='status'?totals.completed+' / '+totals.dealers:formatReportValue(totals[col.key],col.format);page.text(value,col.format==='text'?col.x+5:col.x+col.width-5,y-14.5,{size:7.7,bold:true,right:col.format!=='text'});}
  let noteY=y-36;
- for(const note of [...(historical?historyNotes:departmentNotes)(id),...(kind==='ytd'?[aadPeriodNote(allRows[0]?.aad)]:[])])for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
+ for(const note of [...(historical?historyNotes:departmentNotes)(id),...(historical?historyTotalNotes(totals,id):[]),...(kind==='ytd'?[aadPeriodNote(allRows[0]?.aad)]:[])])for(const line of wrap(note,inner,7.2)){page.text(line,M,noteY,{size:7.2,color:MUTED});noteY-=9;}
  page.line(M,30,W-M,30);const stamp=new Date(generatedAt).toLocaleString('fr-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
- page.text('Émis le '+stamp+' · Moyennes pondérées · Montants en dollars canadiens',M,17,{size:7,color:MUTED});page.text('Page '+pageNumber+' / '+totalPages,W-M,17,{size:7,right:true,color:MUTED});
+ page.text('Émis le '+stamp+(historical?' · Moyennes selon la période':' · Moyennes pondérées')+' · Montants en dollars canadiens',M,17,{size:7,color:MUTED});page.text('Page '+pageNumber+' / '+totalPages,W-M,17,{size:7,right:true,color:MUTED});
  return page.commands.join('\n');
 }
 function assemblePDF(streams){
@@ -83,12 +83,15 @@ function assemblePDF(streams){
  const start=bytes(source).length;source+='xref\n0 '+objects.length+'\n0000000000 65535 f \n'+offsets.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+objects.length+' /Root 1 0 R >>\nstartxref\n'+start+'\n%%EOF\n';
  return bytes(source);
 }
-export function generateGroupPdf({rows,departmentIds,kind='weekly',month='2026-10',scope='all',search='',periodEnd=null,simulated=true,historical=false,generatedAt=new Date().toISOString()}){
+export function generateGroupPdf({rows,departmentIds,kind='weekly',month='2026-10',scope='all',search='',periodEnd=null,simulated=true,historical=false,departmentData={},generatedAt=new Date().toISOString()}){
  const ids=selectedDepartments(departmentIds);if(!Array.isArray(rows)||!Object.hasOwn(REPORT_LABELS,kind)||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||Number.isNaN(Date.parse(generatedAt)))throw Error('Paramètres de rapport invalides.');
  if(kind==='weekly'&&periodEnd)reportingPeriod(kind,month,periodEnd);
  rows=sortGroupRows(rows);
- const available=historyServiceAnalyses(rows),analyses=available.length?available:['mechanics'];
- const sheets=ids.flatMap(id=>historical&&id==='service'?analyses.map(serviceAnalysis=>({id,serviceAnalysis})):[{id}]),pages=sheets.flatMap(sheet=>{const size=historical&&sheet.id==='service'?16:19,n=Math.max(1,Math.ceil(rows.length/size));return Array.from({length:n},(_,i)=>({...sheet,rows:rows.slice(i*size,(i+1)*size),part:i+1,totalParts:n}));}),totalPages=pages.length,streams=[];
- for(const page of pages)streams.push(renderSheet({...page,allRows:rows,kind,month,scope,search,periodEnd,simulated,historical,generatedAt,pageNumber:streams.length+1,totalPages}));
+ const sheets=ids.flatMap(id=>{
+  const selection=historical?departmentData[id]:null,allRows=sortGroupRows(selection?.rows||rows),period={kind:selection?.kind||kind,month:selection?.month||month,periodEnd:selection?.periodEnd??periodEnd};
+  const available=historyServiceAnalyses(allRows),analyses=available.length?available:['mechanics'];
+  return (historical&&id==='service'?analyses.map(serviceAnalysis=>({id,serviceAnalysis})):[{id}]).map(sheet=>({...sheet,...period,allRows}));
+ }),pages=sheets.flatMap(sheet=>{const size=historical?(sheet.id==='service'?16:17):19,n=Math.max(1,Math.ceil(sheet.allRows.length/size));return Array.from({length:n},(_,i)=>({...sheet,rows:sheet.allRows.slice(i*size,(i+1)*size),part:i+1,totalParts:n}));}),totalPages=pages.length,streams=[];
+ for(const page of pages)streams.push(renderSheet({scope,search,simulated,historical,generatedAt,...page,pageNumber:streams.length+1,totalPages}));
  return assemblePDF(streams);
 }

@@ -1,4 +1,4 @@
-import {checkWorkspaceRelease} from './workspace-release.mjs?v=1.20.3';
+import {checkWorkspaceRelease} from './workspace-release.mjs?v=1.20.4';
 import {createPasswordFlow,cleanPasswordUrl,RECOVERY_EXPIRED} from './password-flow.mjs?v=1.20.1';
 import {applyPlatformBrand} from './branding.mjs?v=1.20.1';
 import {createCentralReportingUI} from './central-reporting-ui.mjs?v=1.20.1';
@@ -10,7 +10,7 @@ import {createBilling} from './billing-ui.mjs?v=1.20.1';
 import {createDossierService} from './dossier.mjs?v=1.20.1';
 import {createOperations} from './operations-ui.mjs?v=1.20.1';
 import {saleErrors} from './reporting.mjs?v=1.20.1';
-import {createModules} from './modules-ui.mjs?v=1.20.1';
+import {createModules} from './modules-ui.mjs?v=1.20.4';
 import {stampPreparation,preparationDateErrors} from './preparation-history.mjs?v=1.20.1';
 import {ROLES,parseRoster,draftErrors,newId,validEmail} from './invitations.mjs?v=1.20.1';
 import {urgentDelivery,reminderDelivery,deliveryReady} from './delivery.mjs?v=1.20.1';
@@ -24,7 +24,7 @@ import {supabaseConfig} from './supabase-config.js?v=1.20.1';
 import {createSupabaseBridge} from './supabase-bridge.mjs?v=1.20.1';
 const $=s=>document.querySelector(s),demo=new URLSearchParams(location.search).get('demo')==='1';
 const selectedDealership=new URLSearchParams(location.search).get('concession')||'levis-subaru';
-const APP_VERSION='1.20.3';let lastWorkspaceReleaseCheck=0;
+const APP_VERSION='1.20.4';let lastWorkspaceReleaseCheck=0;
 async function checkPublishedWorkspace(){if(Date.now()-lastWorkspaceReleaseCheck<15000)return false;lastWorkspaceReleaseCheck=Date.now();return checkWorkspaceRelease({currentVersion:APP_VERSION,href:location.href});}
 let metricUnsubs=[],metricYear='',departmentData={},objectiveView='vente';
 let employees=[],messages=[],teamView='users',editingEmployee=null,inviteDraft=null,inviting=false,editingMessage=null;
@@ -361,7 +361,7 @@ async function applyDealerContext(scope){
  const choices=workspaceNavigation(scope,readable);document.querySelector('#concessionPicker')?.closest('label').remove();
  const label=document.createElement('label');label.className='workspace-picker';label.textContent='Concession';const pick=document.createElement('select');pick.id='concessionPicker';pick.setAttribute('aria-label','Choisir une concession autorisée');
  pick.innerHTML=choices.map(d=>'<option value="'+esc(d.id)+'">'+esc(d.name)+(d.destination==='reports'?' · rapports':'')+'</option>').join('');pick.value=selectedDealership;pick.onchange=()=>{const item=choices.find(d=>d.id===pick.value);if(item)location.href=platformDestination(item);};label.append(pick);document.querySelector('aside>.brand').after(label);
- if(selectedDealership!=='levis-subaru'){for(const field of ['finance','driver'])$('#recordForm').elements[field].innerHTML='<option value="">Employés à compléter</option>';document.querySelector('main>footer').firstChild.textContent=m.name+' · Version 1.20.3 ';}
+ if(selectedDealership!=='levis-subaru'){for(const field of ['finance','driver'])$('#recordForm').elements[field].innerHTML='<option value="">Employés à compléter</option>';document.querySelector('main>footer').firstChild.textContent=m.name+' · Version 1.20.4 ';}
 }
 const central=createCentralReportingUI({state:()=>({profile,user,demo,sdk}),render,toast});
 const modules=createModules({state:()=>({profile,user,demo,sdk,db,tab,month:monthKey(),records,employees,goals,departmentData,objectiveView,teamView}),render,fail,toast,setMonth:m=>{calendarDate=dateObj(m+'-01');},navigate:(next,sub)=>{if(next==='group'){location.href='./groupe/plateforme.html';return;}modules.leave();tab=next;if(next==='settings'&&sub)objectiveView=sub;if(next==='team'&&sub)teamView=sub;filter='all';search='';render();},renderLegacySettings:renderSettings,getProducts:()=>operations.getProducts(),getWholesale:()=>operations.getWholesale(),operationsStatus:()=>operations.status(),renderSalesTools:view=>operations.renderSalesTools(view),selectedProducts:(ids,old)=>operations.selectedProducts(ids,old),saveSale:(sale,financials)=>dossierService.save({sale,financials}),prepareSale:(vehicle,sale)=>openRecord(vehicle.id,undefined,sale)});

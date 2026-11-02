@@ -6,7 +6,7 @@ import {canEditObjectives,isMember,canViewTeam,canViewModule} from './permission
 import {DEPT_FIELDS,PLAN_FIELDS,number,periodsForMonth,reportId,planId,reportErrors,saleErrors,salesSummary,summarizeReports,summarizePlans,monthsForPeriod,legacySalesSummary} from './reporting.mjs?v=1.20.1';
 import {preparationAnalysis} from './preparation-history.mjs?v=1.20.1';
 import {newId} from './invitations.mjs?v=1.20.1';
-import {createDealershipHistory,historyDepartments} from './dealership-history-ui.mjs?v=1.20.1';
+import {createDealershipHistory,historyDepartments} from './dealership-history-ui.mjs?v=1.20.4';
 const names={vente:'Ventes',service:'Service',piece:'Pièces',esthetique:'Esthétique'};
 const payments={comptant:['Comptant','cash'],financement:['Financement','finance'],location:['Location','lease']};
 const sum=a=>{const v=a.filter(Number.isFinite);return v.length?v.reduce((n,x)=>n+x,0):null;};
