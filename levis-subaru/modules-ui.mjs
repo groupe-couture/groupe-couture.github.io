@@ -1,12 +1,12 @@
-import {linkedSale,linkedVehicle} from './dossier.mjs?v=1.20.1';
-import {salesMetrics,salesReporting,addWholesaleMetrics} from './operations.mjs?v=1.20.1';
-import {HOUSE,salespeople,boardSeller,salesBoardGroups,dealGrid} from './sales-board.mjs?v=1.20.1';
-import {esc,today,dateObj,dayKey,objectiveSummary} from './domain.mjs?v=1.20.1';
-import {canEditObjectives,isMember,canViewTeam,canViewModule} from './permissions.mjs?v=1.20.1';
-import {DEPT_FIELDS,PLAN_FIELDS,number,periodsForMonth,reportId,planId,reportErrors,saleErrors,salesSummary,summarizeReports,summarizePlans,monthsForPeriod,legacySalesSummary} from './reporting.mjs?v=1.20.1';
-import {preparationAnalysis} from './preparation-history.mjs?v=1.20.1';
-import {newId} from './invitations.mjs?v=1.20.1';
-import {createDealershipHistory,historyDepartments} from './dealership-history-ui.mjs?v=1.20.4';
+import {linkedSale,linkedVehicle} from './dossier.mjs?v=1.21.0';
+import {salesMetrics,salesReporting,addWholesaleMetrics} from './operations.mjs?v=1.21.0';
+import {HOUSE,salespeople,boardSeller,salesBoardGroups,dealGrid} from './sales-board.mjs?v=1.21.0';
+import {esc,today,dateObj,dayKey,objectiveSummary} from './domain.mjs?v=1.21.0';
+import {canEditObjectives,isMember,canViewTeam,canViewModule} from './permissions.mjs?v=1.21.0';
+import {DEPT_FIELDS,PLAN_FIELDS,number,periodsForMonth,reportId,planId,reportErrors,saleErrors,salesSummary,summarizeReports,summarizePlans,monthsForPeriod,legacySalesSummary} from './reporting.mjs?v=1.21.0';
+import {preparationAnalysis} from './preparation-history.mjs?v=1.21.0';
+import {newId} from './invitations.mjs?v=1.21.0';
+import {createDealershipHistory,historyDepartments} from './dealership-history-ui.mjs?v=1.21.0';
 const names={vente:'Ventes',service:'Service',piece:'Pièces',esthetique:'Esthétique'};
 const payments={comptant:['Comptant','cash'],financement:['Financement','finance'],location:['Location','lease']};
 const sum=a=>{const v=a.filter(Number.isFinite);return v.length?v.reduce((n,x)=>n+x,0):null;};
@@ -121,13 +121,14 @@ export function createModules(ctx){
  function monthStats(d,k,m,cutoff=today()){
   const rows=reports.filter(r=>r.month===m&&r.department===d&&(r.kind||'all')===k&&r.periodEnd<=cutoff),r=summarizeReports(rows,d,k),old=legacy[d+'_'+m]||C().departmentData[d+'_'+m]||{};
   let values=r.values,source='hebdomadaire';if(!r.count){values={};for(const [key]of DEPT_FIELDS[d])values[key]=number(old[key]);values.delay=number(old.delay);source='mensuel antérieur';}
+  let hasData=r.count>0||Object.values(values).some(Number.isFinite);
   let p=plans.filter(p=>p.department===d&&(p.kind||'all')===k&&p.month===m),target=summarizePlans(p,d,k).values;
   if(!p.length){for(const [key]of PLAN_FIELDS[d])target[key]=number(old['goal_'+key]);if(d==='vente'&&target.units===null)target.units=sum(targets.filter(t=>t.type===k&&t.month===m).map(t=>number(t.goal)));}
   // Legacy sales amounts combine Neuf and Occasion; they cannot be assigned to either without inventing a split.
   const individual=sales.some(s=>s.type===k&&s.saleDate?.startsWith(m)&&s.saleDate<=cutoff);
-  if(d==='vente'&&individual){const summary=salesReporting(sales,finances,reports,{type:k,month:m,cutoff});values={...values,...summary.values};source='ventes enregistrées'+(summary.usesHistory?' et rapports historiques':'')+(summary.partial?' · montants incomplets':'')+(summary.historicalPartial?' · historique conservé pour les périodes non rapprochées':'');}
-  if(d==='vente'&&k==='VO'){const result=addWholesaleMetrics({values},ctx.getWholesale(),{type:k,from:m+'-01',to:m+'-31'<cutoff?m+'-31':cutoff,sales});values=result.values;if(values.wholesaleUnits)source+=' · wholesale inclus';if(result.wholesaleExcluded)source+=' · '+result.wholesaleExcluded+' wholesale à vérifier (doublon ou montant manquant)';}
-  return {values,target,count:r.count,source,rows:r.rows,month:m};
+  if(d==='vente'&&individual){const summary=salesReporting(sales,finances,reports,{type:k,month:m,cutoff});values={...values,...summary.values};hasData=true;source='ventes enregistrées'+(summary.usesHistory?' et rapports historiques':'')+(summary.partial?' · montants incomplets':'')+(summary.historicalPartial?' · historique conservé pour les périodes non rapprochées':'');}
+  if(d==='vente'&&k==='VO'){const result=addWholesaleMetrics({values},ctx.getWholesale(),{type:k,from:m+'-01',to:m+'-31'<cutoff?m+'-31':cutoff,sales});values=result.values;hasData=hasData||values.wholesaleUnits>0;if(values.wholesaleUnits)source+=' · wholesale inclus';if(result.wholesaleExcluded)source+=' · '+result.wholesaleExcluded+' wholesale à vérifier (doublon ou montant manquant)';}
+  return {values,target,count:r.count,source,hasData,rows:r.rows,month:m};
  }
  function washStats(months,from='',to=today()){
   const ends=C().records.filter(v=>v.type==='VO'&&v.steps?.lavage?.status==='Terminé'&&months.includes(v.steps.lavage.finishedOn?.slice(0,7))&&v.steps.lavage.finishedOn<=to&&(!from||v.steps.lavage.finishedOn>=from));
@@ -144,7 +145,7 @@ export function createModules(ctx){
   values.margin=pair('profit','revenue',100);values.rate=pair('revenue','hours');values.productivity=pair('clocked','presence',100);values.efficiency=pair('hours','clocked',100);values.utilization=pair('hours','presence',100);
   if(d==='esthetique')values.delay=washStats(months,'',cutoff);
   const ps=snap.map(s=>({department:d,kind:k,values:s.target}));Object.assign(target,summarizePlans(ps,d,k).values);
-  return {values,target,partial:snap.some(s=>s.source.includes('incomplets')),source:snap.some(s=>s.source.startsWith('ventes enregistrées'))?'Ventes enregistrées'+(snap.some(s=>s.source.includes('incomplets'))?' · montants financiers incomplets':'')+(snap.some(s=>s.source.includes('rapports historiques'))?' · rapports historiques conservés':'')+(snap.some(s=>s.source==='hebdomadaire'&&s.count)?' et rapports historiques':''):snap.some(s=>s.count)?'Rapports hebdomadaires'+(snap.some(s=>s.source==='mensuel antérieur'&&number(s.values.revenue)!==null)?' et saisies mensuelles antérieures':''):snap.some(s=>Object.values(s.values).some(Number.isFinite))?'Saisies mensuelles antérieures':'Aucune saisie reçue',count:snap.reduce((n,s)=>n+s.count,0),missing:snap.filter(s=>!s.count&&!Object.values(s.values).some(Number.isFinite)).length};
+  return {values,target,partial:snap.some(s=>s.source.includes('incomplets')),source:snap.some(s=>s.source.startsWith('ventes enregistrées'))?'Ventes enregistrées'+(snap.some(s=>s.source.includes('incomplets'))?' · montants financiers incomplets':'')+(snap.some(s=>s.source.includes('rapports historiques'))?' · rapports historiques conservés':'')+(snap.some(s=>s.source==='hebdomadaire'&&s.count)?' et rapports historiques':''):snap.some(s=>s.count)?'Rapports hebdomadaires'+(snap.some(s=>s.source==='mensuel antérieur'&&number(s.values.revenue)!==null)?' et saisies mensuelles antérieures':''):snap.some(s=>s.hasData)?'Saisies mensuelles antérieures':'Aucune saisie reçue',count:snap.reduce((n,s)=>n+s.count,0),missing:snap.filter(s=>!s.hasData).length};
  }
  const defs={vente:[['units','Ventes signées',''],['vehicleAverage','Profit véhicule moyen','$'],['financeAverage','F&I moyen','$'],['vehicleProfit','Profit véhicules','$'],['financeProfit','Profit F&I','$'],['totalProfit','Profit total · véhicules + F&I','$'],['inventory','Inventaire',''],['walk','Walk-in',''],['leads','Leads Web',''],['phone','Clients téléphone','']],service:[['revenue','Chiffre d’affaires MO','$'],['profit','Profit brut MO','$'],['margin','Marge brute MO','%'],['hours','Heures vendues','h'],['productivity','Productivité','%'],['efficiency','Efficacité','%'],['utilization','Utilisation','%'],['rate','Taux horaire effectif','$/h'],['ros','Bons de réparation','']],piece:[['revenue','Chiffre d’affaires pièces','$'],['profit','Profit brut pièces','$'],['margin','Marge brute','%'],['invoices','Factures','']],esthetique:[['prepared','Véhicules préparés',''],['delay','Délai moyen de lavage mesuré','j'],['revenue','Chiffre d’affaires','$'],['profit','Profit brut','$'],['waiting','En attente · photo de fin de période',''],['rework','Retouches / reprises','']]};
  function reportTable(d,k,periodMode=mode){

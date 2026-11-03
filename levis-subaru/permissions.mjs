@@ -13,8 +13,13 @@ export function availableSubcategories(profile,group){return (SUBMENUS[group]||[
 export function canViewTeam(profile,view){return canViewSubcategory(profile,'team',view);}
 export function availableTeamViews(profile){return availableSubcategories(profile,'team');}
 export function canViewGroup(profile){return isMember(profile)&&profile.role!=='employe'&&(profile.canReadGroup===true||profile.role==='dg'||profile.role==='admin');}
+export function initialWorkspaceView(profile,search=''){
+ const requested=new URLSearchParams(search).get('tab');
+ return requested&&canViewModule(profile,requested)&&!['group'].includes(requested)?requested:canViewModule(profile,'home')?'home':'vo';
+}
 export function canViewModule(profile,tab){
  if(!isMember(profile))return false;
+ if(tab==='home')return ['admin','dg','directeur'].includes(profile.role);
  if(['vo','deliveries','calendar','team'].includes(tab))return true;
  if(tab==='group')return canViewGroup(profile);
  if(tab==='reports')return profile.role!=='employe';

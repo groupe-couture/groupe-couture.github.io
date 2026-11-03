@@ -1,4 +1,4 @@
-import {periodsForMonth} from './reporting.mjs?v=1.20.4';
+import {periodsForMonth} from './reporting.mjs?v=1.21.0';
 export const reportingWeeks=periodsForMonth;
 export function reportDataForSelection(data,{kind,periodEnd}){
  if(kind!=='weekly')return data;
@@ -74,9 +74,12 @@ export function createCentralReporting(supabase){
   myMemberships:()=>read(supabase.from('gc_memberships').select('*')),
   myGroupAccess:()=>read(supabase.from('gc_group_readers').select('user_id,active')),
   dealerships:()=>read(supabase.from('gc_dealerships').select('id,name,required_sections,reporting_enabled,historical_only,joined_group_month').order('name')),
-  history:async(dealershipId)=>{
+  history:async(dealershipId,{cached=null}={})=>{
    const batches=await read(supabase.from('gc_history_imports').select('id,source_url,source_modified_at,summary,completed_at').eq('status','completed').order('completed_at',{ascending:false}).limit(1));
    const batch=batches[0];if(!batch)return {batch:null,records:[]};
+   // Revalider le lot terminé à chaque actualisation, sans recharger ses lignes immuables.
+   // Le cache Groupe est invalidé par le contrôleur à tout changement d'identité/périmètre.
+   if(!dealershipId&&cached?.batch?.id===batch.id&&JSON.stringify(cached.batch)===JSON.stringify(batch))return cached;
    const [records,service,parts]=await Promise.all([
     readAll(()=>{let q=supabase.from('gc_history_records').select('dealership_id,section,kind,as_of,source_sheet_id,source_row,values:data->values,hasActual:data->hasActual,source').eq('import_id',batch.id).order('source_sheet_id').order('source_row').order('section');if(dealershipId)q=q.eq('dealership_id',dealershipId);return q;}),
     readAll(()=>{let q=supabase.from('gc_history_service_metrics').select('source_sheet_id,source_row,values,issues').eq('import_id',batch.id).order('source_sheet_id').order('source_row');if(dealershipId)q=q.eq('dealership_id',dealershipId);return q;}),

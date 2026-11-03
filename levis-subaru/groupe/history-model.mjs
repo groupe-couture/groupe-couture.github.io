@@ -1,8 +1,8 @@
-import {sortGroupRows} from './dashboard-model.mjs?v=1.20.4';
-import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.20.4';
-import {groupStartMonth,outsideGroup,completionCounts} from './group-membership.mjs?v=1.20.4';
-import {historyAadPeriod} from './aad-period.mjs?v=1.20.4';
-import {SERVICE_ANALYSES,SERVICE_FLOW_KEYS,SERVICE_SNAPSHOT_KEYS,serviceDerived,SERVICE_NOTES} from './service-metrics.mjs?v=1.20.4';
+import {sortGroupRows} from './dashboard-model.mjs?v=1.21.0';
+import {REPORT_DEPARTMENTS,previousMonth,inventoryCoverage} from './department-reporting.mjs?v=1.21.0';
+import {groupStartMonth,outsideGroup,completionCounts} from './group-membership.mjs?v=1.21.0';
+import {historyAadPeriod} from './aad-period.mjs?v=1.21.0';
+import {SERVICE_ANALYSES,SERVICE_FLOW_KEYS,SERVICE_SNAPSHOT_KEYS,serviceDerived,SERVICE_NOTES} from './service-metrics.mjs?v=1.21.0';
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
 const sum=vs=>vs.length&&vs.every(finite)?vs.reduce((a,b)=>a+b,0):null;
 const sumKnown=vs=>{const known=vs.filter(finite);return known.length?known.reduce((a,b)=>a+b,0):null;};
@@ -81,12 +81,14 @@ export function historyDashboardRows(dealers,records,{kind='monthly_final',month
     for(const key of id==='service'?SERVICE_FLOW_KEYS:['revenue','profit'])part[key]=annual?sumKnown(values(key)):v[key]??null;
     if(id==='service'){
      for(const key of [...SERVICE_SNAPSHOT_KEYS,'retailGrossPercent','reportedMargin','productivity','efficiency','utilization'])part[key]=v[key]??null;
-     Object.assign(part,serviceDerived(part,{annual}));
+     part.serviceInputs=annual?[...selected.map(r=>r.data.values),...missingMonths.map(()=>({}))]:[v];
+     Object.assign(part,serviceDerived(part,{annual,inputs:part.serviceInputs}));
     }else{part.reportedMargin=annual?null:v.reportedMargin??null;part.margin=!annual&&Object.hasOwn(v,'reportedMargin')?v.reportedMargin:divide(part.profit,part.revenue,100);}
     part.financialBasesMatch=!annual||JSON.stringify(metricMissingMonths.revenue)===JSON.stringify(metricMissingMonths.profit);
     if(annual&&!part.financialBasesMatch){part.margin=null;if(id==='service')part.reportedMargin=null;}
    }
    part.partial=part.hasOfficial&&(missingMonths.length>0||Object.values(metricMissingMonths).some(ms=>ms.length>0)||part.issues.length>0||(id==='vn'||id==='vo'?part.units===0?[part.units]:[part.units,part.vehicleAverage,part.financeAverage]:kind==='month_to_date'&&id==='service'?[part.advisors,part.openROs,part.technicians]:[part.revenue,part.profit]).some(x=>!finite(x)));
+   if(id==='service'&&part.hasOfficial&&Object.values(part.serviceRatioCoverage||{}).some(c=>c.partial))part.partial=true;
    departments[id]=part;
   }
   return {...dealer,aad,historical:true,outsideGroup:excluded,status:excluded?'outside_group':'imported',hasOfficial:Object.values(departments).some(p=>p.hasOfficial),departments,
@@ -103,7 +105,9 @@ export function historyTotals(rows,id){
   t.metricCoverage=Object.fromEntries(['revenue','profit','advisors','openROs','technicians','wip','shopMaterialsCost'].map(key=>[key,{received:parts.filter(p=>finite(p[key])).length,expected:t.expected}]));
  }
  if(id==='service'){
-  Object.assign(t,serviceDerived(t,{annual:true}));
+  const inputs=rows.filter(r=>!r.departments.service.outsideGroup).flatMap(r=>r.departments.service.serviceInputs?.length?r.departments.service.serviceInputs:[{}]);
+  Object.assign(t,serviceDerived(t,{annual:true,inputs}));
+  if(Object.values(t.serviceRatioCoverage||{}).some(c=>c.partial))t.partialTotals=true;
   for(const key of ['actualClientHourlyRate','postedClientHourlyRate','customerPartsGrossPercent','customerSellingRate','hourlyRate','customerGrossPercent'])t[key]=null;
  }
  if(id==='vn'||id==='vo'){

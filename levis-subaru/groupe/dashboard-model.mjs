@@ -1,6 +1,6 @@
-import {latestOfficialSubmissions,officialYearToDate,reportingWeeks} from './reporting.mjs?v=1.20.4';
-import {outsideGroup,inGroupSubmissions,joinedMonths} from './group-membership.mjs?v=1.20.4';
-import {officialAadPeriod} from './aad-period.mjs?v=1.20.4';
+import {latestOfficialSubmissions,officialYearToDate,reportingWeeks} from './reporting.mjs?v=1.21.0';
+import {outsideGroup,inGroupSubmissions,joinedMonths} from './group-membership.mjs?v=1.21.0';
+import {officialAadPeriod} from './aad-period.mjs?v=1.21.0';
 
 export const REPORT_LABELS={weekly:'Hebdomadaire',monthly_final:'Mois final',ytd:'AAD (année à date)',month_to_date:'Mois à date'};
 export const STATES={draft:'En préparation',validated:'Validé par le DG',submitted:'Soumis au groupe'};

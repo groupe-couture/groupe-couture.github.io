@@ -1,21 +1,26 @@
-import {applyPlatformBrand,brandLogoHtml} from '../branding.mjs?v=1.20.4';
-import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.20.4';
-import {groupEntryLabel} from './group-membership.mjs?v=1.20.4';
-import {CONCESSIONS} from '../registry.mjs?v=1.20.4';
-import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.20.4';
-import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.20.4';
-import {generateGroupPdf} from './group-pdf.mjs?v=1.20.4';
-import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.20.4';
-import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis,historyAverageNote,historyTotalNotes,historyPdfSelections} from './history-model.mjs?v=1.20.4';
-import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.20.4';
-import {reportingNavigation,dashboardSelection,dashboardUrl} from '../platform-navigation.mjs?v=1.20.4';
-import {checkDashboardRelease} from './release-loader.mjs?v=1.20.4';
+import {applyPlatformBrand,brandLogoHtml} from '../branding.mjs?v=1.21.0';
+import {aadPeriodLabel,aadPeriodNote} from './aad-period.mjs?v=1.21.0';
+import {groupEntryLabel} from './group-membership.mjs?v=1.21.0';
+import {CONCESSIONS} from '../registry.mjs?v=1.21.0';
+import {dashboardDealerships,REPORT_LABELS} from './dashboard-model.mjs?v=1.21.0';
+import {REPORT_DEPARTMENTS,demoDashboardReports,departmentDashboardRows,departmentTotals,filterDashboardRows,formatReportValue,departmentNotes,selectedDepartments,reportStateLabel,dashboardCsv} from './department-reporting.mjs?v=1.21.0';
+import {generateGroupPdf} from './group-pdf.mjs?v=1.21.0';
+import {reportingWeeks,reportDataForSelection} from './reporting.mjs?v=1.21.0';
+import {historyDefinitions,historyDashboardRows,historyTotals,historyNotes,historyDates,defaultHistorySelection,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis,historyAverageNote,historyTotalNotes,historyPdfSelections} from './history-model.mjs?v=1.21.0';
+import {SERVICE_ANALYSES} from './service-metrics.mjs?v=1.21.0';
+import {reportingNavigation,dashboardSelection,dashboardUrl} from '../platform-navigation.mjs?v=1.21.0';
+import {checkDashboardRelease} from './release-loader.mjs?v=1.21.0';
+import {createPilotageUI} from '../pilotage-ui.mjs?v=1.21.0';
+import {torontoToday} from '../pilotage.mjs?v=1.21.0';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const preciseNumber=new Intl.NumberFormat('fr-CA',{maximumFractionDigits:10});
 const format=formatReportValue,live=document.documentElement.dataset.mode==='live';
 let dealers=dashboardDealerships(CONCESSIONS).map(d=>({...d,reporting_enabled:true})),liveData={periods:[],submissions:[],history:{batch:null,records:[]}},source='official',sourceChosen=false,allowedDepartments=Object.keys(REPORT_DEPARTMENTS),ownView=false,navigation={items:[],canReadGroup:true,selectedDealership:'',workspaceId:null},dealerSearch='';
 let kind='weekly',month='2026-10',weekEnd=reportingWeeks(month).at(-1).periodEnd,scope='all',search='',department='vn',section='consolidation',serviceAnalysis='mechanics',pdfObjectUrl=null,cachedKey=null,cachedRows=null,detailGeneration=0;
 const historical=()=>live&&source==='history',definitions=()=>historical()?historyDefinitions(serviceAnalysis):REPORT_DEPARTMENTS;
+const entryRoute=new URLSearchParams(location.search);let pilotageMonth=/^\d{4}-(0[1-9]|1[0-2])$/.test(entryRoute.get('month')||'')?entryRoute.get('month'):torontoToday().slice(0,7);
+section=['pilotage','actions'].includes(entryRoute.get('screen'))?entryRoute.get('screen'):live&&!['source','view','department','month'].some(k=>entryRoute.has(k))&&entryRoute.get('screen')!=='reports'?'pilotage':'consolidation';
+const pilotage=createPilotageUI({onMonth:m=>{pilotageMonth=m;$('#periodLabel').textContent='Objectifs mensuels et annuels · '+monthLabel(m);if(live){const url=new URL(location.href);url.searchParams.set('month',m);history.replaceState(null,'',url);}},onMode:m=>{section=m==='actions'?'actions':'pilotage';refreshView();},onObjectives:({dealershipId,month,department})=>{location.href='../?concession='+encodeURIComponent(dealershipId)+'&tab=settings&month='+month+'&department='+({vn:'vente',vo:'vente',service:'service',parts:'piece'}[department]||'vente');},onReport:selection=>{department=selection.department;month=selection.month;section='consolidation';source=selection.preferredSource||(liveData.submissions.some(s=>s.dealership_id===(selection.dealershipId||s.dealership_id)&&s.snapshot?.endDate?.startsWith(month))?'official':'history');kind=selection.preferredKind||(['service','parts'].includes(department)||source==='official'?'monthly_final':'month_to_date');$('#month').value=month;$('#dataSource').value=source;cachedKey=null;updateWeeks();refreshView();}});
 function allRows(){const selected=dealers.filter(d=>!navigation.selectedDealership||d.id===navigation.selectedDealership),key=navigation.selectedDealership+'|'+source+'|'+kind+'|'+month+'|'+weekEnd;if(key!==cachedKey){cachedRows=historical()?historyDashboardRows(selected,liveData.history.records,{kind,month,periodEnd:weekEnd}):departmentDashboardRows(selected.filter(d=>!d.historical_only),live?reportDataForSelection(liveData,{kind,periodEnd:weekEnd}):demoDashboardReports(selected,{kind,month,periodEnd:weekEnd}),{kind,year:Number(month.slice(0,4)),month:Number(month.slice(5))});cachedKey=key;}return cachedRows;}
 const rows=()=>filterDashboardRows(allRows(),{scope,search,department});
 const monthLabel=m=>m?new Date(m+'-15T12:00:00').toLocaleDateString('fr-CA',{month:'short',year:'numeric'}):'';
@@ -25,7 +30,7 @@ function selectDealer(id){
  navigation=reportingNavigation(liveData.access||{canReadGroup:true,memberships:[]},dealers,id);ownView=navigation.ownView;allowedDepartments=navigation.allowedDepartments;
  if(!allowedDepartments.includes(department))department=allowedDepartments[0]||'vn';
  if(ownView||navigation.items.find(d=>d.id===navigation.selectedDealership)?.historical_only){source='history';if(kind==='weekly')kind='month_to_date';}
- section='consolidation';cachedKey=null;updateWeeks();refreshView();
+ if(navigation.items.find(d=>d.id===navigation.selectedDealership)?.historical_only||!['pilotage','actions'].includes(section))section='consolidation';cachedKey=null;updateWeeks();refreshView();
 }
 function renderNavigation(){
  const current=navigation.items.find(d=>d.id===navigation.selectedDealership),items=navigation.items.filter(d=>!dealerSearch||d.name.toLocaleLowerCase('fr-CA').includes(dealerSearch.toLocaleLowerCase('fr-CA')));
@@ -66,6 +71,10 @@ function cells(part){return definitions()[department].columns.map(([key,,type])=
 }).join('');}
 function render(){
  renderNavigation();
+ const hub=['pilotage','actions'].includes(section);$('#pilotageRoot').hidden=!hub;document.querySelector('.controls').hidden=hub;document.querySelector('.coverage').hidden=hub;document.querySelector('.department-tabs').hidden=hub;$('#departmentPanel').hidden=hub;$('#export').hidden=hub;$('#pdfOpen').hidden=hub;
+ document.querySelectorAll('[data-hub]').forEach(b=>{b.hidden=!live;b.setAttribute('aria-pressed',String(b.dataset.hub===section));b.classList.toggle('selected',b.dataset.hub===section);});
+ if(live){const route=new URL(location.href);route.searchParams.set('screen',hub?section:'reports');if(navigation.selectedDealership)route.searchParams.set('concession',navigation.selectedDealership);else route.searchParams.delete('concession');if(hub)route.searchParams.set('month',pilotageMonth);history.replaceState(null,'',route);}
+ if(hub){document.querySelectorAll('[data-section]').forEach(b=>b.classList.remove('selected'));if(!navigation.selectedDealership)document.querySelector('main h1').textContent=section==='actions'?'Suivi des actions du groupe':'Pilotage du groupe';$('#periodLabel').textContent='Objectifs mensuels et annuels · '+monthLabel(pilotageMonth);pilotage.update(liveData);pilotage.mount($('#pilotageRoot'),{dealershipId:navigation.selectedDealership,mode:section==='actions'?'actions':'pilotage',month:pilotageMonth});return;}
  if(historical()){
   const next=historyDepartmentSelection(liveData.history.records,{kind,month,periodEnd:weekEnd},department);kind=next.kind;
   if(department==='service')serviceAnalysis=historyServiceAnalysis(allRows(),serviceAnalysis,kind);
@@ -135,7 +144,7 @@ function updateWeeks(){
 }
 $('#dataSource').onchange=e=>{source=e.target.value;sourceChosen=true;section='consolidation';if(historical()&&kind==='weekly')kind='month_to_date';if(!historical()&&kind==='month_to_date')kind='weekly';updateWeeks();refreshView();};
 document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.kind;if(department==='service')serviceAnalysis=kind==='month_to_date'?'organisation':'mechanics';refreshView();});document.querySelectorAll('[data-department]').forEach(b=>b.onclick=()=>{department=b.dataset.department;if(department==='service')serviceAnalysis=kind==='month_to_date'?'organisation':'mechanics';refreshView();});document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>{section=b.dataset.section;refreshView();});
-$('#groupOverview').onclick=()=>selectDealer('');$('#dealerSelector').onchange=e=>selectDealer(e.target.value);$('#dealerSearch').oninput=e=>{dealerSearch=e.target.value;renderNavigation();};
+document.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>{section=b.dataset.hub;refreshView();});$('#groupOverview').onclick=()=>{section='consolidation';selectDealer('');};$('#dealerSelector').onchange=e=>selectDealer(e.target.value);$('#dealerSearch').oninput=e=>{dealerSearch=e.target.value;renderNavigation();};
 $('#month').onchange=e=>{if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value)||!reportingWeeks(e.target.value).length){e.target.value=month;return;}month=e.target.value;updateWeeks();refreshView();};$('#week').onchange=e=>{weekEnd=e.target.value;refreshView();};$('#scope').onchange=e=>{scope=e.target.value;refreshView();};$('#search').oninput=e=>{search=e.target.value;refreshView();};$('#closeDetail').onclick=()=>$('#detail').close();
 document.querySelectorAll('[data-department]').forEach(b=>b.onkeydown=e=>{const tabs=[...document.querySelectorAll('[data-department]')].filter(t=>!t.hidden),index=tabs.indexOf(b);let target;if(e.key==='ArrowRight')target=tabs[(index+1)%tabs.length];if(e.key==='ArrowLeft')target=tabs[(index+tabs.length-1)%tabs.length];if(e.key==='Home')target=tabs[0];if(e.key==='End')target=tabs.at(-1);if(target){e.preventDefault();target.focus();target.click();}});
 $('#pdfOpen').onclick=()=>openPdf(Object.keys(REPORT_DEPARTMENTS));$('#pdfCurrent').onclick=()=>openPdf([department]);$('#pdfClose').onclick=()=>$('#pdfDialog').close();document.querySelectorAll('[name="pdfDepartment"]').forEach(el=>el.onchange=updatePdfSelection);
@@ -148,9 +157,9 @@ updateWeeks();
 if(live){
  applyPlatformBrand('groupe-couture',{shell:'group'});
  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');kind='monthly_final';$('#month').value=month;updateWeeks();
- import('./live-dashboard.mjs?v=1.20.4').then(({connectLiveDashboard})=>connectLiveDashboard({
+ import('./live-dashboard.mjs?v=1.21.0').then(({connectLiveDashboard})=>connectLiveDashboard({
  onReload:()=>document.querySelector('dialog[open]')?Promise.resolve(false):checkDashboardRelease({currentVersion:document.documentElement.dataset.version,href:location.href}),
- onClear(){detailGeneration++;sourceChosen=false;liveData={periods:[],submissions:[],history:{batch:null,records:[]}};navigation={items:[],canReadGroup:false,selectedDealership:'',workspaceId:null};cachedKey=null;cachedRows=null;clearReadyFile();$('#cards').innerHTML='';$('#tableBody').innerHTML='';$('#tableFoot').innerHTML='';$('#dealerLinks').innerHTML='';$('#dealerSelector').innerHTML='';$('#concessionLogo').hidden=true;applyPlatformBrand('groupe-couture',{shell:'group'});document.querySelectorAll('dialog[open]').forEach(d=>d.close());},
+ onClear(){pilotage.clear();detailGeneration++;sourceChosen=false;liveData={periods:[],submissions:[],history:{batch:null,records:[]}};navigation={items:[],canReadGroup:false,selectedDealership:'',workspaceId:null};cachedKey=null;cachedRows=null;clearReadyFile();$('#cards').innerHTML='';$('#tableBody').innerHTML='';$('#tableFoot').innerHTML='';$('#dealerLinks').innerHTML='';$('#dealerSelector').innerHTML='';$('#concessionLogo').hidden=true;applyPlatformBrand('groupe-couture',{shell:'group'});document.querySelectorAll('dialog[open]').forEach(d=>d.close());},
  onData(data){
   if(historical()&&$('#pdfDialog').open&&data.history===liveData.history){liveData=data;return;}
   dealers=data.dealerships;liveData=data;navigation=reportingNavigation(data.access||{canReadGroup:!data.ownView,memberships:[]},dealers,new URLSearchParams(location.search).get('concession')||'');ownView=navigation.ownView;allowedDepartments=navigation.allowedDepartments;
@@ -161,7 +170,7 @@ if(live){
    const route=dashboardSelection(location.search);if(route.source&&(route.source!=='history'||data.history.batch))source=route.source;if(route.department&&allowedDepartments.includes(route.department))department=route.department;if(route.month&&reportingWeeks(route.month).length)month=route.month;if(route.kind)kind=route.kind;if(route.periodEnd)weekEnd=route.periodEnd;
    if(source==='history'&&kind==='weekly')kind='month_to_date';if(source==='official'&&kind==='month_to_date')kind='weekly';serviceAnalysis=kind==='month_to_date'?'organisation':'mechanics';$('#month').value=month;sourceChosen=true;}
   if(ownView||navigation.items.find(d=>d.id===navigation.selectedDealership)?.historical_only){source='history';if(kind==='weekly')kind='month_to_date';}$('#dataSource').value=source;
-  section=historical()?'consolidation':section;updateWeeks();cachedKey=null;cachedRows=null;refreshView();
+  if(historical()&&section==='submissions')section='consolidation';updateWeeks();cachedKey=null;cachedRows=null;refreshView();
  }
  })).catch(e=>{$('#groupError').textContent='Connexion indisponible : '+e.message;});
 }else{navigation=reportingNavigation({canReadGroup:true,memberships:[]},dealers);render();}

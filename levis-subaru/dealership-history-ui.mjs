@@ -1,11 +1,11 @@
-import {createCentralReporting} from './central-reporting-core.mjs?v=1.20.4';
-import {canEditObjectives,isMember} from './permissions.mjs?v=1.20.4';
-import {esc} from './domain.mjs?v=1.20.4';
-import {historyDashboardRows,historyDates,defaultHistorySelection,HISTORY_DEPARTMENTS,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis,historyAverageNote,historyPdfSelections} from './groupe/history-model.mjs?v=1.20.4';
-import {SERVICE_ANALYSES,SERVICE_EXTRA_COLUMNS,SERVICE_NOTES} from './groupe/service-metrics.mjs?v=1.20.4';
-import {formatReportValue,reportStateLabel} from './groupe/department-reporting.mjs?v=1.20.4';
-import {aadPeriodLabel,aadPeriodNote} from './groupe/aad-period.mjs?v=1.20.4';
-import {generateGroupPdf} from './groupe/group-pdf.mjs?v=1.20.4';
+import {createCentralReporting} from './central-reporting-core.mjs?v=1.21.0';
+import {canEditObjectives,isMember} from './permissions.mjs?v=1.21.0';
+import {esc} from './domain.mjs?v=1.21.0';
+import {historyDashboardRows,historyDates,defaultHistorySelection,HISTORY_DEPARTMENTS,historyDepartmentSelection,historyServiceAnalyses,historyServiceAnalysis,historyAverageNote,historyPdfSelections} from './groupe/history-model.mjs?v=1.21.0';
+import {SERVICE_ANALYSES,SERVICE_EXTRA_COLUMNS,SERVICE_NOTES} from './groupe/service-metrics.mjs?v=1.21.0';
+import {formatReportValue,reportStateLabel} from './groupe/department-reporting.mjs?v=1.21.0';
+import {aadPeriodLabel,aadPeriodNote} from './groupe/aad-period.mjs?v=1.21.0';
+import {generateGroupPdf} from './groupe/group-pdf.mjs?v=1.21.0';
 
 export function historyDepartments(profile){
  if(!isMember(profile)||profile.role==='employe'||profile.reportingEnabled===false)return [];

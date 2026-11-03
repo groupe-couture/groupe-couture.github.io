@@ -1,6 +1,6 @@
-import {esc,today} from './domain.mjs?v=1.20.1';
-import {newId} from './invitations.mjs?v=1.20.1';
-import {DEALER,PURCHASE_TAX_MODES,USES,PRODUCT_CATEGORIES,currency,purchaseTotals,purchaseErrors,leaseErrors,leaseProfit,purchaseFromDossier,purchaseDocument,leaseDocument,totalsHTML} from './purchases.mjs?v=1.20.1';
+import {esc,today} from './domain.mjs?v=1.21.0';
+import {newId} from './invitations.mjs?v=1.21.0';
+import {DEALER,PURCHASE_TAX_MODES,USES,PRODUCT_CATEGORIES,currency,purchaseTotals,purchaseErrors,leaseErrors,leaseProfit,purchaseFromDossier,purchaseDocument,leaseDocument,totalsHTML} from './purchases.mjs?v=1.21.0';
 const $=s=>document.querySelector(s);
 const input=(key,label,value='',type='text',attrs='')=>'<label>'+label+'<input name="'+key+'" type="'+type+'" value="'+esc(value??'')+'" '+attrs+'></label>';
 const select=(key,label,options,value)=>'<label>'+label+'<select name="'+key+'">'+Object.entries(options).map(([k,v])=>'<option value="'+esc(k)+'" '+(value===k?'selected':'')+'>'+esc(v)+'</option>').join('')+'</select></label>';

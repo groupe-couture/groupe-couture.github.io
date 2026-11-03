@@ -1,4 +1,4 @@
-import {readAccessContext,accessProfile} from './access-context.mjs';
+import {readAccessContext,accessProfile} from './access-context.mjs?v=1.21.0';
 // Adaptateur des écrans : le périmètre est vérifié à nouveau sur chaque requête serveur.
 // All authorization is enforced by PostgreSQL RLS, not by this client.
 export function createSupabaseBridge(client,{dealershipId='levis-subaru',scoped=false,identity=()=>({})}={}) {

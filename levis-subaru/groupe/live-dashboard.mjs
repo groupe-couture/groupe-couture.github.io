@@ -1,7 +1,8 @@
-import {passwordReturnTarget} from '../password-flow.mjs?v=1.20.4';
-import {supabaseConfig} from '../supabase-config.js?v=1.20.4';
-import {readAccessContext} from '../access-context.mjs?v=1.20.4';
-import {createCentralReporting} from './reporting.mjs?v=1.20.4';
+import {passwordReturnTarget} from '../password-flow.mjs?v=1.21.0';
+import {supabaseConfig} from '../supabase-config.js?v=1.21.0';
+import {readAccessContext} from '../access-context.mjs?v=1.21.0';
+import {createCentralReporting} from './reporting.mjs?v=1.21.0';
+import {createManagementApi} from '../management-api.mjs?v=1.21.0';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function normalizeReportPeriods(periods,progress,submissions){
  return periods.map(p=>({...p,endDate:p.end_date,total:p.required_sections.length,
@@ -23,10 +24,10 @@ export async function connectLiveDashboard({onData,onClear,onReload=async()=>fal
    if(!scope.canReadGroup&&!operational.length){historyCache=null;onClear();$('#groupShell').hidden=true;$('#groupLogin').hidden=false;$('#groupError').textContent='Ce compte n’a pas accès aux indicateurs. Ouvrez votre concession pour consulter les écrans permis.';return;}
    const nextScope=JSON.stringify(scope);if(scopeKey!==nextScope){historyCache=null;onClear();scopeKey=nextScope;}
    const ownView=!scope.canReadGroup;
-   const [dealerships,periods,submissions,progress,history]=await Promise.all([api.dealerships(),ownView?[]:api.periods(),ownView?[]:api.submissions(),ownView?[]:api.progress(),historyCache?Promise.resolve(historyCache):api.history()]);
+   const [dealerships,periods,submissions,progress,history]=await Promise.all([api.dealerships(),ownView?[]:api.periods(),ownView?[]:api.submissions(),ownView?[]:api.progress(),api.history(undefined,{cached:historyCache})]);
    if(token!==generation)return;
    history.readFields=source=>api.historyFields(history.batch.id,source.sheetId,source.row);historyCache=history;
-   onData({dealerships,periods:normalizeReportPeriods(periods,progress,submissions),submissions,history,ownView,access:scope});
+   onData({dealerships,periods:normalizeReportPeriods(periods,progress,submissions),submissions,history,ownView,access:scope,management:createManagementApi(client)});
    $('#groupLogin').hidden=true;$('#groupShell').hidden=false;
    $('#liveStatus').textContent='Données du serveur · '+(history.batch?'historique Google Sheets disponible · ':'')+'actualisé à '+new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});
   }catch(e){if(token!==generation)return;onClear();$('#groupShell').hidden=true;$('#groupLogin').hidden=false;$('#groupError').textContent=e.message||'Chargement impossible.';}
