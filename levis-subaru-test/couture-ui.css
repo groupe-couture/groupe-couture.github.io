@@ -1,0 +1,304 @@
+/* Groupe Couture — shared presentation layer.
+   Approved direction: Inter, navy navigation, blue actions, quiet surfaces.
+   No business values, data requests, roles or visibility rules are defined here.
+   Inter (OFL) and Phosphor Regular (MIT) are served locally; licenses in branding/. */
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url('./branding/fonts/inter-latin-400-normal.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:500;font-display:swap;src:url('./branding/fonts/inter-latin-500-normal.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:swap;src:url('./branding/fonts/inter-latin-600-normal.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url('./branding/fonts/inter-latin-700-normal.woff2') format('woff2')}
+
+@media screen {
+  :root{--gc-ink:#071b2e;--gc-muted:#586476;--gc-background:#fbfbfc;--gc-navy:#052640;--gc-blue:#0061ad;--gc-line:#d7dde4;--gc-sidebar:240px}
+  html,body{font-family:'Inter','Segoe UI',Arial,sans-serif;color:var(--gc-ink);background:var(--gc-background)}
+  html[data-brand] body{background:var(--gc-background)}
+  button,input,select,textarea{font-family:inherit}
+  button{transition:background-color .15s,border-color .15s}
+  button,input,select,textarea{border-radius:7px}
+  input,select,textarea{border-color:#b7c4d0;color:var(--gc-ink)}
+  button{color:var(--gc-ink)}
+  input:not([type=checkbox]):not([type=radio]),select{min-height:42px}
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible,
+  html[data-brand] button:focus-visible,html[data-brand] input:focus-visible,html[data-brand] select:focus-visible{outline:3px solid #1686e5;outline-offset:3px}
+  button:disabled{cursor:not-allowed}
+  p{line-height:1.6}
+  h1,h2,h3{color:var(--gc-ink)}
+  h1{font-size:clamp(30px,3.1vw,48px);font-weight:700;letter-spacing:-1.2px;line-height:1.15;margin:15px 0 12px}
+  h2{font-size:26px;line-height:1.3;letter-spacing:-.6px}
+  .eyebrow,.pilotage-eyebrow{color:var(--gc-muted);font-weight:700;font-size:11px;line-height:1.5;letter-spacing:1.5px}
+  header p,#viewScope{color:var(--gc-muted);line-height:1.6}
+  #subtitle{font-size:16px;max-width:75ch}
+  small,.muted{color:var(--gc-muted)}
+  .primary,.pdf-primary,.pilotage-primary,
+  html[data-brand] .primary,html[data-brand] .pdf-primary,html[data-brand] .ls-primary{background:var(--gc-blue);border-color:var(--gc-blue);color:#fff;font-weight:600}
+  .primary,.pdf-primary,.pilotage-primary{min-height:44px;padding:12px 20px}
+  .export,#groupReload,#groupLogout{font-size:12px;font-weight:500;min-height:42px;border-color:#bcc9d5;background:white}
+  .header-actions,.report-actions{gap:9px;flex-wrap:wrap}
+  .report-actions{justify-content:flex-end}
+  #app>main,body>main,#groupShell>main{margin-left:var(--gc-sidebar);padding:40px;min-width:0}
+  #app:not(.sales-screen)>main>header,body>main>header,#groupShell>main>header{padding-bottom:8px;gap:24px;align-items:flex-start}
+  #app>aside,body>aside,#groupShell>aside,
+  html[data-brand] #app>aside,html[data-brand] body>aside,html[data-brand] #groupShell>aside{width:var(--gc-sidebar);background:var(--gc-navy);padding:26px 14px;color:white;gap:0}
+  #app>aside{overflow-y:auto}
+  aside>.brand{padding:0 13px}
+  aside .brand-logo-card{border-radius:5px;box-shadow:none;height:108px;padding:10px}
+  aside .brand-caption{letter-spacing:1.6px!important;font-size:9px!important;margin-top:14px!important}
+  aside nav{display:flex;flex-direction:column;margin:30px 0 0;gap:5px}
+  aside nav button{display:flex;align-items:center;gap:12px;min-height:48px;width:100%;border:0;border-radius:7px;margin:0;padding:12px 13px;text-align:left;color:#e5eef5;background:transparent;font-size:14px;line-height:1.45}
+  aside nav button span{font-size:inherit}
+  .gc-nav-icon{width:23px;height:23px;flex:none;pointer-events:none}
+  aside nav button:hover{background:#244760;filter:none}
+  aside nav button.selected,html[data-brand] aside nav button.selected{background:#365b7b;color:white;font-weight:600;box-shadow:none}
+  aside .side-subnav{margin:0 0 10px 23px;padding-left:10px;border-color:#416480}
+  aside .side-subnav button{min-height:38px;font-size:12px;padding:9px 10px}
+  aside .aside-bottom,aside .side-bottom{padding:24px 12px 0;font-size:11px;color:#cbdce9;line-height:1.5}
+  aside .aside-bottom small,aside .side-bottom small{color:#a9bfce}
+  aside .aside-bottom button{color:#e5eef5;min-height:38px;font-size:12px}
+  .dealer-navigation{margin:24px 10px 0;gap:15px}
+  .dealer-navigation label{color:#c6d6e4;font-size:11px;line-height:1.5}
+  .dealer-navigation input,.dealer-navigation select{font-size:12px;min-height:40px;border-radius:6px}
+  #dealerLinks button{font-size:12px;min-height:42px;padding:10px;border-radius:6px;color:#d6e3ed}
+  #dealerLinks button[aria-pressed=true],html[data-brand] #dealerLinks button[aria-pressed=true]{background:#365b7b;color:white}
+  #dealerLinks button small{color:#b4c7d8}
+  aside button:focus-visible,aside input:focus-visible,aside select:focus-visible,
+  html[data-brand] aside button:focus-visible,html[data-brand] aside input:focus-visible,html[data-brand] aside select:focus-visible{outline-color:white}
+  .demo-banner{background:#edf2f7;border:1px solid #d8e2eb;border-radius:7px;color:#465a70;padding:12px 16px;gap:14px;flex-wrap:wrap}
+  .demo-banner strong,.demo-banner span{color:#465a70}
+  .release-version{font-size:11px;color:#586476}
+  #demoNote{background:#edf2f7;border-color:#c8d8e8;color:#38546f}
+
+  /* Shared reporting controls and data surfaces; no existing field is hidden. */
+  .controls,.pilotage-toolbar{padding:18px 0;border-bottom:1px solid var(--gc-line);gap:14px;margin:12px 0 26px}
+  .controls label,.pilotage-toolbar label,.pilotage-filters label{font-size:12px;font-weight:500;color:var(--gc-muted)}
+  .period-tabs{background:#eaf0f5;border-radius:7px;padding:4px}
+  .period-tabs button{min-height:38px;padding:9px 12px;font-size:12px;color:#53667a}
+  .period-tabs button[aria-pressed=true],html[data-brand] .period-tabs button[aria-pressed=true]{color:var(--gc-blue);background:white}
+  .department-tabs{gap:8px;margin:24px 0}
+  .department-tabs button{background:transparent;font-size:14px;min-height:48px;border-radius:5px 5px 0 0;padding:13px 12px;color:#526175}
+  .department-tabs button[aria-selected=true],html[data-brand] .department-tabs button[aria-selected=true]{background:#e7f1fb;color:#00579a;border-bottom-color:var(--gc-blue)}
+  .service-analyses button{font-size:12px;min-height:42px;border-color:#bccbd8}
+  .service-analyses button[aria-pressed=true],html[data-brand] .service-analyses button[aria-pressed=true]{background:var(--gc-blue);border-color:var(--gc-blue);color:white}
+  .history-period-notice{font-size:13px;background:#eff5fa;border-color:#cbddea;color:#365775}
+  .coverage{background:#eff4f8;border:1px solid #dde6ee;padding:16px 20px;border-radius:8px}
+  .coverage strong{font-size:13px}
+  .coverage span,.coverage small{font-size:11px;line-height:1.65;color:#526578}
+  .coverage .track{height:6px;background:#d9e3ec}
+  .coverage .track i{background:var(--gc-blue)}
+  .kpis,.metrics{gap:18px}
+  .kpi,.metric,html[data-brand] .kpi{border:1px solid var(--gc-line);border-radius:9px;padding:22px;background:white;box-shadow:none}
+  .kpi>span,.metric>span{font-size:13px;line-height:1.5;font-weight:500;color:var(--gc-muted)}
+  .kpi strong,.metric strong{color:var(--gc-ink);font-size:clamp(26px,2.2vw,36px);font-weight:700;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+  .kpi small,.metric small{font-size:11px;line-height:1.65;color:var(--gc-muted)}
+  .bar{height:7px;background:#e3eaf1}
+  .bar i{background:var(--gc-blue)}
+  .panel{border:1px solid var(--gc-line);border-radius:9px;box-shadow:none}
+  .panel-head{padding:24px 24px 18px;gap:18px}
+  .table-filters{padding:0 24px 20px;gap:12px}
+  .table-filters input,.table-filters select{font-size:13px}
+  .table-wrap{border-color:var(--gc-line);border-radius:8px}
+  .panel>.table-wrap,.pilotage-table-wrap{border-radius:0}
+  .table-wrap th,.pilotage-table-wrap th{font-family:inherit;background:#f4f7fa;color:#526175;font-size:12px;font-weight:600;letter-spacing:.3px;padding:16px 14px;line-height:1.55}
+  .table-wrap td{padding:18px 14px;font-size:14px;border-top-color:#e4e9ef}
+  .table-wrap td strong{font-size:14px;color:var(--gc-ink)}
+  .table-wrap td small,.table-wrap .num small{font-size:11px;line-height:1.6;color:var(--gc-muted)}
+  .table-wrap tbody tr:hover{background:#f1f7fd}
+  .table-wrap tfoot td,.table-wrap tfoot th{background:#eaf2f9;color:var(--gc-ink);padding:18px 14px}
+  .num{font-variant-numeric:tabular-nums}
+  .open-report{color:var(--gc-blue);font-size:12px;min-height:36px}
+  .calculation-notes p{font-size:12px;line-height:1.7}
+  .state,.pilotage-state{font-size:11px;line-height:1.5;border-radius:5px;padding:5px 8px}
+
+  /* Existing objectives and priorities, presented in the approved visual language. */
+  .pilotage-toolbar button{font-size:12px;min-height:42px;border:1px solid #bcc9d5;padding:11px 14px;background:white}
+  .pilotage-toolbar button[aria-pressed=true]{background:#e7f1fb;border-color:#9ebfdf;color:#00579a;font-weight:600}
+  .pilotage-toolbar button.pilotage-primary{background:var(--gc-blue);border-color:var(--gc-blue);color:white}
+  .pilotage-priorities{gap:0;border-top:1px solid var(--gc-line);border-bottom:1px solid var(--gc-line);margin-bottom:24px}
+  .pilotage-priorities article{border:0;border-radius:0;background:transparent;box-shadow:none;padding:22px 24px;align-items:flex-start;flex-direction:column-reverse;gap:9px}
+  .pilotage-priorities article+article{border-left:1px solid var(--gc-line)}
+  .pilotage-priorities article:first-child{padding-left:0}
+  .pilotage-priorities strong{font-size:34px;color:var(--gc-ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+  .pilotage-priorities span{font-size:13px;color:var(--gc-muted)}
+  .pilotage-grid{gap:20px}
+  .pilotage-card{border:1px solid var(--gc-line);border-radius:9px;box-shadow:none}
+  .pilotage-card-title{padding:22px;min-height:125px;border-bottom-color:#e4e9ef}
+  .pilotage-card h2{font-size:24px;line-height:1.3;letter-spacing:-.6px;color:var(--gc-ink)}
+  .pilotage-card-title button,.pilotage-card-foot button{font-size:12px;min-height:34px;color:var(--gc-blue);text-align:left}
+  .pilotage-progress{padding:22px;border-bottom-color:#e4e9ef}
+  .pilotage-period{font-size:13px;color:#526175;line-height:1.6}
+  .pilotage-numbers{margin:15px 0;color:var(--gc-muted)}
+  .pilotage-numbers strong{font-size:30px;letter-spacing:-.8px;color:var(--gc-ink);font-variant-numeric:tabular-nums}
+  .pilotage-track{height:8px;background:#dce4ed;border-radius:8px}
+  .pilotage-track i{background:var(--gc-blue);border-radius:8px}
+  .pilotage-remaining{font-size:13px;line-height:1.6;color:#365775}
+  .pilotage-progress small,.pilotage-card-foot small,.pilotage-rule{color:var(--gc-muted);font-size:11px;line-height:1.7}
+  .pilotage-card-foot{padding:16px 22px;background:#fafcfe;gap:8px}
+  .pilotage-rule{font-size:12px;max-width:140ch}
+  .pilotage-actions{border:1px solid var(--gc-line);border-radius:9px;margin-top:30px}
+  .pilotage-actions-heading{padding:24px;gap:20px}
+  .pilotage-actions h2{font-size:26px;color:var(--gc-ink)}
+  .pilotage-actions td{padding:19px 20px;font-size:13px;border-top-color:#e4e9ef;line-height:1.5}
+  .pilotage-actions small{font-size:11px;color:var(--gc-muted)}
+  .pilotage-actions td button{color:var(--gc-blue);font-size:12px;min-height:38px}
+  .pilotage-late td:nth-child(3),.pilotage-late td:nth-child(3) small{color:#a04923}
+
+  /* Operational screens retain their controls, fields and compact sales layout. */
+  .toolbar{gap:12px}
+  .preparation-icons{gap:8px}
+  .preparation-icon{border-radius:50%;width:36px;height:36px}
+  .preparation-icon.done{background:#16824f;border-color:#16824f;color:white}
+  .preparation-icon.ongoing{background:#0063b4;border-color:#0063b4;color:white}
+  .preparation-icon.not-required{background:#f5f7fa;border-color:#a8b7c6;color:#687c8d}
+  .preparation-icon .preparation-mark{background:white;color:#26724d}
+  .preparation-icon.ongoing .preparation-mark{color:#0063b4}
+  .preparation-count{font-size:12px;color:var(--gc-muted)}
+  .badge{font-size:12px;line-height:1.5}
+  .empty{border-color:#c7d4df;border-radius:8px;color:var(--gc-muted);line-height:1.65}
+  .settings,.message-card,.org{border-color:var(--gc-line);border-radius:9px}
+  .ls-panel,.ls-kpi,.ls-summary,.ls-stat{box-shadow:none}
+  #app.sales-screen main{padding:1rem 1.2rem}
+  #app.sales-screen h1{font-size:1.25rem;letter-spacing:-.03em;line-height:1.25;margin:.25rem 0}
+  footer{font-size:11px;line-height:1.6;color:var(--gc-muted);gap:16px;margin-top:30px}
+
+  /* Native dialogs retain their focus, submit and close behavior. */
+  dialog,.pilotage-dialog{border:1px solid #cbd6e1;border-radius:12px;color:var(--gc-ink);box-shadow:0 25px 100px #001b3440}
+  dialog::backdrop,.pilotage-dialog::backdrop{background:#071b2e80}
+  dialog h2,.pilotage-dialog-head h2{font-size:24px;line-height:1.3;letter-spacing:-.6px}
+  .dialog-top,.dialog-head,.pilotage-dialog-head{gap:18px}
+  .dialog-top>button,.dialog-head>button,.pilotage-dialog-head>button{min-width:40px;min-height:40px;border-radius:6px}
+  .dialog-actions{border-top:1px solid #e4e9ef;gap:10px}
+  dialog label,.pilotage-dialog label{font-size:14px;color:#526175}
+  dialog fieldset{border-color:var(--gc-line);border-radius:8px}
+  .pdf-description,.detail-note{font-size:13px;line-height:1.7}
+  .pdf-departments label{border-color:#c5d3df;border-radius:7px}
+  .pdf-departments label:has(input:checked){background:#edf5fd;border-color:#7aabd5}
+  .pdf-departments input{accent-color:var(--gc-blue)}
+  .group-login,html[data-brand] .login{background:var(--gc-navy)}
+  .group-login>div,.login-card{border:1px solid #d8e1e9;border-radius:12px;box-shadow:0 18px 70px #00182830;padding:36px}
+  .group-login h1,.login-card h1{font-size:36px;line-height:1.15;margin:18px 0}
+  .group-login p,.login-card p{color:var(--gc-muted);font-size:14px;line-height:1.7}
+  .group-login a,.login-card .text{color:var(--gc-blue)}
+  .group-login small,.login-card small{font-size:11px;line-height:1.7}
+  #groupLoginLogo .brand-logo-card{box-shadow:none}
+  #groupError,#loginError{color:#a32929}
+}
+@media screen and (min-width:901px) and (max-width:1250px){
+  #app>main,body>main,#groupShell>main{padding:30px 24px}
+  #app>aside,body>aside,#groupShell>aside{padding:24px 10px}
+  aside nav button{gap:10px;padding:11px 10px;font-size:14px}
+  .kpi,.metric{padding:18px}
+  .report-actions{max-width:320px}
+  .pilotage-card-title,.pilotage-progress{padding:20px}
+}
+@media screen and (max-width:1100px){
+  .pilotage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pilotage-priorities{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .pilotage-priorities article{padding:18px 15px}
+}
+@media screen and (max-width:900px){
+  #app>main,body>main,#groupShell>main{margin-left:0;padding:28px 20px}
+  #app>aside,body>aside,#groupShell>aside,html[data-brand] #app>aside,html[data-brand] body>aside,html[data-brand] #groupShell>aside{position:static;width:100%;padding:16px 20px;overflow:visible}
+  #app>aside{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px}
+  #app aside nav{display:none}
+  #app .mobile-nav{display:grid;grid-column:1/-1;color:#d6e3ed}
+  #app aside>.brand{max-width:205px;margin:0;padding:0}
+  #app aside>.aside-bottom{padding:0;font-size:11px}
+  #app aside>.brand .brand-logo-card{height:78px}
+  body>aside,#groupShell>aside{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,1fr);gap:16px}
+  body>aside>.brand,#groupShell>aside>.brand{padding:0;max-width:205px;margin:0}
+  body>aside .brand-logo-card,#groupShell>aside .brand-logo-card{height:88px}
+  body>aside nav,#groupShell>aside nav{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;gap:6px}
+  body>aside nav button,#groupShell>aside nav button{font-size:12px;justify-content:center;min-height:48px;gap:8px;padding:11px 9px}
+  .dealer-navigation{grid-column:2;grid-row:1;display:flex;justify-content:center;margin:0;min-width:0}
+  .dealer-navigation label{display:grid}
+  .dealer-navigation select{font-size:13px}
+  .dealer-search-label,#dealerLinks,.side-bottom{display:none!important}
+  .dealer-navigation .dealer-search-label{display:none}
+  aside .brand-caption{font-size:8px!important;margin-top:9px!important}
+  .controls{align-items:stretch;flex-direction:row}
+  .controls>label:first-child{flex-basis:100%}
+  .controls label{flex-wrap:wrap}
+  .period-tabs{flex-wrap:wrap}
+  .pilotage-card-title{min-height:0}
+  .header-actions{max-width:100%}
+  .report-actions{justify-content:flex-start;max-width:none;width:100%}
+  body>main>header,#groupShell>main>header{flex-direction:column}
+  .department-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media screen and (max-width:600px){
+  #app>main,body>main,#groupShell>main{padding:24px 16px}
+  #app>aside,body>aside,#groupShell>aside{padding:14px 16px}
+  h1{font-size:32px;letter-spacing:-.8px;margin:13px 0 10px}
+  h2{font-size:23px}
+  #subtitle{font-size:14px}
+  .eyebrow{font-size:10px;letter-spacing:1.2px}
+  #app aside>.brand{max-width:165px}
+  #app aside>.brand .brand-logo-card{height:66px}
+  body>aside,#groupShell>aside{grid-template-columns:140px minmax(0,1fr);gap:12px}
+  body>aside .brand-logo-card,#groupShell>aside .brand-logo-card{height:72px}
+  body>aside nav,#groupShell>aside nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  body>aside nav button,#groupShell>aside nav button{justify-content:flex-start;font-size:11px;min-height:44px;gap:7px}
+  .gc-nav-icon{width:20px;height:20px}
+  .dealer-navigation label{font-size:10px}
+  .dealer-navigation select{font-size:11px;width:100%;padding:8px}
+  .report-actions>*{flex:1 1 140px;text-align:center}
+  .demo-banner{padding:11px 13px;font-size:11px}
+  .release-version{margin-left:0}
+  .controls,.pilotage-toolbar{gap:10px;padding:14px 0;margin-bottom:20px}
+  .controls>label{width:100%;flex-direction:column;align-items:stretch;gap:6px}
+  .controls input,.controls select{width:100%;max-width:100%}
+  .period-tabs{width:100%;gap:3px}
+  .period-tabs button{font-size:11px;padding:9px 7px;flex:1 1 25%;white-space:normal}
+  .department-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:18px 0}
+  .department-tabs button{font-size:12px;padding:12px 8px;white-space:normal}
+  .kpis,.metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .kpi,.metric,html[data-brand] .kpi{padding:16px 13px}
+  .kpi strong,.metric strong{font-size:26px}
+  .kpi>span,.metric>span{font-size:12px}
+  .coverage{padding:14px}
+  .coverage>div:first-child{display:grid;gap:7px}
+  .panel-head,.pilotage-actions-heading{padding:20px 16px}
+  .table-filters{padding:0 16px 18px;flex-direction:column}
+  .table-filters input{max-width:none}
+  .pilotage-grid{grid-template-columns:minmax(0,1fr)}
+  .pilotage-priorities{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pilotage-priorities article{padding:16px;gap:8px}
+  .pilotage-priorities article:nth-child(odd){border-left:0;padding-left:0}
+  .pilotage-priorities article:nth-child(n+3){border-top:1px solid var(--gc-line)}
+  .pilotage-priorities strong{font-size:29px}
+  .pilotage-priorities span{font-size:12px}
+  .pilotage-card-title,.pilotage-progress{padding:20px}
+  .pilotage-card h2{font-size:24px}
+  .pilotage-card-foot{padding:15px 20px}
+  .pilotage-toolbar>*{flex:1 1 145px}
+  .pilotage-filters{width:100%;gap:10px}
+  .pilotage-filters label{flex:1 1 160px;min-width:0}
+  dialog,.pilotage-dialog{padding:20px;width:calc(100vw - 24px);max-height:92dvh;border-radius:10px}
+  dialog h2,.pilotage-dialog-head h2{font-size:22px}
+  dialog .dialog-actions{bottom:-20px}
+  .group-login>div,.login-card{padding:26px 22px}
+  .group-login h1,.login-card h1{font-size:32px}
+  footer{font-size:10px;gap:8px;margin-top:24px}
+}
+@media screen and (min-width:1800px){
+  :root{--gc-sidebar:270px}
+  #app>main,body>main,#groupShell>main{padding:44px 48px}
+  aside nav button{font-size:15px;min-height:52px}
+  .pilotage-card h2{font-size:27px}
+}
+@media screen and (prefers-reduced-motion:reduce){button{transition:none}}
+
+@media screen and (min-width:1000px){#app:not(.sales-screen) .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media screen and (min-width:1000px){#app:not(.sales-screen) .metrics .metric{padding:16px}#app:not(.sales-screen) .metrics .metric strong{font-size:28px;margin-top:8px}#app:not(.sales-screen) .metrics .metric .bar{margin-top:12px}}
+/* Keep complete numerical values readable, especially stock and currency pairs. */
+@media screen{
+ .kpi strong,.stock-pair b{overflow-wrap:normal;word-break:normal;white-space:nowrap}
+ .stock-pair{flex-wrap:wrap;align-items:flex-start;gap:12px}
+ .stock-pair>div{border-left:0;padding-left:0}
+}
+@media screen and (min-width:601px) and (max-width:1400px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media screen and (max-width:600px){.kpis{grid-template-columns:minmax(0,1fr)}}
+@media screen{
+ .pilotage-actions td button,.pilotage-dialog-head>[data-task-close]{background:white;border:1px solid #bcc9d5;padding:9px 12px;border-radius:7px;box-shadow:none}
+}
+/* Short or heavily zoomed viewports: keep every field reachable above the actions. */
+@media screen and (max-height:500px){dialog .dialog-actions{position:static;bottom:auto}}
